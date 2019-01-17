@@ -42,26 +42,31 @@ namespace winagent_updater
                     // Create dictionary with filenames and download URLs
                     var dictionary = release.Files.ToDictionary(x => x.Filename, x => x.Url);
 
+                    // Download files
+                    Download(dictionary);
+
+                    // Check integrity
+                    Checksum(dictionary);
+
                     // Download attempts (5)
-                    // Download if it fails
-                    int retries = 0;
-                    if (!Download(dictionary) && retries < 5)
-                    {
-                        retries++;
-                        Console.WriteLine("Failed. Retrying");
-                        Download(dictionary);
-                    }
-                    else
-                    {
-                        Console.WriteLine("Downloaded");
-                    }
+                    // Download again if checksum fails
+                    // int retries = 0;
+                    // while (!Checksum(dictionary) && retries < 5)
+                    // {
+                    //     retries++;
+                    //     Console.WriteLine("Failed. Retrying...");
+                    //     Download(dictionary);
+                    //     Checksum(dictionary);
+                    //     // TODO: do something if it fails 5 times
+                    // }
                 }
             });
 
+            // TODO: The request can fail
             return 0;
         }
 
-        static private Boolean Download(Dictionary<string,string> dictionary)
+        private static void Download(Dictionary<string,string> dictionary)
         {
             var downladClient = new RestClient("https://github.com/cern-winagent/");
 
@@ -74,12 +79,16 @@ namespace winagent_updater
                 // Save as filename
                 downladClient.DownloadData(downloadRequest).SaveAs(kvp.Key);
             }
+        }
+
+        private static Boolean Checksum(Dictionary<string,string> dictionary)
+        {
 
             // Check checksum
             foreach (KeyValuePair<string, string> kvp in dictionary)
             {
                 // If it's not a checksumfile
-                if (Path.GetExtension(kvp.Key)!=".sha1")
+                if (Path.GetExtension(kvp.Key) != ".sha1")
                 {
                     // Calculate and compare with the pertinent checksum
                     if (CalculateChecksum(kvp.Key) != ReadChecksum(kvp.Key + ".sha1"))
@@ -89,11 +98,11 @@ namespace winagent_updater
                     }
                 }
             }
-            
-            return true;
-        }
 
-        static private string CalculateChecksum(string filePath)
+            return true;
+        } 
+
+        private static string CalculateChecksum(string filePath)
         {
             using (FileStream fs = new FileStream(filePath, FileMode.Open))
             using (BufferedStream bs = new BufferedStream(fs))
@@ -103,7 +112,7 @@ namespace winagent_updater
             }
         }
 
-        static private string ReadChecksum(string filePath)
+        private static string ReadChecksum(string filePath)
         {
             return File.ReadAllText(filePath).Split(' ')[0];
         }
