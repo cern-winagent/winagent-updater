@@ -1,69 +1,117 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
+using System.ServiceProcess;
+using System.Threading;
 using RestSharp;
 using RestSharp.Extensions;
+
 namespace winagent_updater
 {
     class Updater
     {
         static void Main(string[] args)
         {
-            CheckUpdates();
-            Console.ReadKey();
+            while (true)
+            {
+                // Delay before the first update
+                // This avoids errors when the service starts
+                Thread.Sleep(10000);
+
+                // Main functionality
+                CheckUpdates();
+
+                // Delay betweeen each check
+                Thread.Sleep(30000);
+            }
         }
 
-        static int CheckUpdates()
+        // TODO: Check if the process is present before stop it
+
+        static void CheckUpdates()
         {
+            // Client pointing the cern-winagent repo
             var client = new RestClient("https://api.github.com/repos/cern-winagent/");
 
-            // var request = new RestRequest("resource/{id}", Method.POST);
+            // Request to the latest release
             var request = new RestRequest("plugin/releases/latest", Method.GET);
-
-            // Async request
-            client.ExecuteAsync(request, response => {
-
-                // Get Info
-                GitHubRelease release = Newtonsoft.Json.JsonConvert.DeserializeObject<GitHubRelease>(response.Content);
-                Console.WriteLine(release.Version);
-
-                // Compare Versions
-                // Latest Version
-                var latestVersion = new Version(release.Version);
-
-                // CurrentVersion
-                var currentVersion = new Version("0.0.1");
-
-                // If latestVersion is grather than currentVersion
-                if(latestVersion.CompareTo(currentVersion) > 0)
+            
+            // Request
+            IRestResponse response = client.Execute(request);
+            if (response.IsSuccessful)
+            {
+                // Capture general errors
+                try
                 {
-                    // Create dictionary with filenames and download URLs
-                    var dictionary = release.Files.ToDictionary(x => x.Filename, x => x.Url);
-
-                    // Download files
-                    Download(dictionary);
-
-                    // Check integrity
-                    Checksum(dictionary);
-
-                    // Download attempts (5)
-                    // Download again if checksum fails
-                    // int retries = 0;
-                    // while (!Checksum(dictionary) && retries < 5)
-                    // {
-                    //     retries++;
-                    //     Console.WriteLine("Failed. Retrying...");
-                    //     Download(dictionary);
-                    //     Checksum(dictionary);
-                    //     // TODO: do something if it fails 5 times
-                    // }
+                    // Consume response
+                    ProcessResponse(response.Content);
                 }
-            });
+                catch
+                {
+                    using (EventLog eventLog = new EventLog("General error"))
+                    {
+                        // EventID 2 => General error
+                        eventLog.Source = "Winagent Updater";
+                        eventLog.WriteEntry("General error", EventLogEntryType.Error, 2, 1);
+                        eventLog.WriteEntry("Response StatusCode: " + response.StatusCode, EventLogEntryType.Error, 2, 1);
+                        eventLog.WriteEntry("Error Message: " + response.ErrorMessage, EventLogEntryType.Error, 2, 1);
+                        eventLog.WriteEntry("Error Exception: " + response.ErrorException, EventLogEntryType.Error, 2, 1);
+                        eventLog.WriteEntry("Content: " + response.Content, EventLogEntryType.Error, 2, 1);
+                    }
+                }
+            }
+            else
+            {
+                using (EventLog eventLog = new EventLog("Request failed"))
+                {
+                    // EventID 1 => Request failed
+                    eventLog.Source = "Winagent Updater";
+                    eventLog.WriteEntry("Request failed", EventLogEntryType.Error, 1, 1);
+                    eventLog.WriteEntry(response.ErrorMessage, EventLogEntryType.Error, 1, 1);
+                }
+            }
+        }
 
-            // TODO: The request can fail
-            return 0;
+        private static void ProcessResponse(string responseContent)
+        {
+
+            // Get Info
+            GitHubRelease release = Newtonsoft.Json.JsonConvert.DeserializeObject<GitHubRelease>(responseContent);
+            Console.WriteLine(release.Version);
+
+            // Compare Versions
+            // Latest Version
+            var latestVersion = new Version(release.Version);
+
+            // CurrentVersion
+            // TODO: Get the correct version
+            var currentVersion = new Version("0.0.1");
+
+            // If latestVersion is grather than currentVersion
+            if(latestVersion.CompareTo(currentVersion) > 0)
+            {
+                // Create dictionary with filenames and download URLs
+                var dictionary = release.Files.ToDictionary(x => x.Filename, x => x.Url);
+
+                // TODO: Catch if it does not exist
+                // Get the service by name
+                ServiceController serviceController = new ServiceController("Winagent");
+                
+                // Stop the service
+                serviceController.Stop();
+                
+                // Download files
+                Download(dictionary);
+
+                // Check integrity
+                Checksum(dictionary);
+
+                // Start the service
+                serviceController.Start();
+            }
         }
 
         private static void Download(Dictionary<string,string> dictionary)
