@@ -51,10 +51,10 @@ namespace winagent_updater
                 }
                 catch
                 {
-                    using (EventLog eventLog = new EventLog("General error"))
+                    using (EventLog eventLog = new EventLog("Application"))
                     {
                         // EventID 2 => General error
-                        eventLog.Source = "Winagent Updater";
+                        eventLog.Source = "WinagentUpdater";
                         eventLog.WriteEntry("General error", EventLogEntryType.Error, 2, 1);
                         eventLog.WriteEntry("Response StatusCode: " + response.StatusCode, EventLogEntryType.Error, 2, 1);
                         eventLog.WriteEntry("Error Message: " + response.ErrorMessage, EventLogEntryType.Error, 2, 1);
@@ -65,10 +65,10 @@ namespace winagent_updater
             }
             else
             {
-                using (EventLog eventLog = new EventLog("Request failed"))
+                using (EventLog eventLog = new EventLog("Application"))
                 {
                     // EventID 1 => Request failed
-                    eventLog.Source = "Winagent Updater";
+                    eventLog.Source = "WinagentUpdater";
                     eventLog.WriteEntry("Request failed", EventLogEntryType.Error, 1, 1);
                     eventLog.WriteEntry(response.ErrorMessage, EventLogEntryType.Error, 1, 1);
                 }
@@ -80,15 +80,19 @@ namespace winagent_updater
 
             // Get Info
             GitHubRelease release = Newtonsoft.Json.JsonConvert.DeserializeObject<GitHubRelease>(responseContent);
-            Console.WriteLine(release.Version);
 
             // Compare Versions
             // Latest Version
-            var latestVersion = new Version(release.Version);
+
+            //TODO: Remove test version
+            //var latestVersion = new Version(release.Version);
+            var latestVersion = new Version("5.0.0");
 
             // CurrentVersion
-            // TODO: Get the correct version
-            var currentVersion = new Version("0.0.1");
+            FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(@"plugin.dll");
+            var currentVersion = new Version(versionInfo.FileVersion);
+
+            Console.WriteLine(latestVersion.CompareTo(currentVersion) > 0);
 
             // If latestVersion is grather than currentVersion
             if(latestVersion.CompareTo(currentVersion) > 0)
@@ -98,19 +102,27 @@ namespace winagent_updater
 
                 // TODO: Catch if it does not exist
                 // Get the service by name
-                ServiceController serviceController = new ServiceController("Winagent");
+                try
+                {
+                    ServiceController serviceController = new ServiceController("Winagent");
                 
-                // Stop the service
-                serviceController.Stop();
+                    // Stop the service
+                    serviceController.Stop();
                 
-                // Download files
-                Download(dictionary);
+                    // Download files
+                    Download(dictionary);
 
-                // Check integrity
-                Checksum(dictionary);
+                    // Check integrity
+                    Checksum(dictionary);
 
-                // Start the service
-                serviceController.Start();
+                    // Start the service
+                    serviceController.Start();
+                }
+                catch 
+                {
+                    // TODO: remove
+                    Console.WriteLine("test");
+                }
             }
         }
 
@@ -125,6 +137,7 @@ namespace winagent_updater
                 var downloadRequest = new RestRequest(kvp.Value, Method.GET);
 
                 // Save as filename
+                // Save in the right folder
                 downladClient.DownloadData(downloadRequest).SaveAs(kvp.Key);
             }
         }
