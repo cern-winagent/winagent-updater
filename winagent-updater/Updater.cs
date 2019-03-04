@@ -6,6 +6,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.ServiceProcess;
 using System.Threading;
+using Newtonsoft.Json.Linq;
 using RestSharp;
 using RestSharp.Extensions;
 
@@ -13,11 +14,16 @@ namespace winagent_updater
 {
     class Updater
     {
+        static IEnumerable<string> plugins;
+
         static void Main(string[] args)
         {
             // Delay before the first update
             // This avoids errors when the service starts
             Thread.Sleep(10000);
+
+            // Get plugins to be updated
+            plugins = GetPlugins();
 
             while (true)
             {
@@ -29,7 +35,25 @@ namespace winagent_updater
             }
         }
 
-        // TODO: Check if the process is present before stop it
+        
+
+        static IEnumerable<string> GetPlugins()
+        {
+            JObject config = JObject.Parse(File.ReadAllText(@"config.json"));
+            HashSet<string> plugins = new HashSet<string>();
+
+            foreach (JProperty input in ((JObject)config["input"]).Properties())
+            {
+                plugins.Add(input.Name);
+                foreach (JProperty output in ((JObject)input.Value).Properties())
+                {
+                    plugins.Add(output.Name);
+                }
+            }
+
+            return plugins;
+        }
+
 
         static void CheckUpdates()
         {
@@ -101,9 +125,7 @@ namespace winagent_updater
             // CurrentVersion
             FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(@"plugin.dll");
             var currentVersion = new Version(versionInfo.FileVersion);
-
-            Console.WriteLine(latestVersion.CompareTo(currentVersion) > 0);
-
+            
             // If latestVersion is grather than currentVersion
             if(latestVersion.CompareTo(currentVersion) > 0)
             {
@@ -131,6 +153,7 @@ namespace winagent_updater
                     // Download files
                     Download(dictionary);
 
+                    // TODO: Use checksum for something [it returns bool]
                     // Check integrity
                     Checksum(dictionary);
 
