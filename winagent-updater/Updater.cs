@@ -14,7 +14,8 @@ namespace winagent_updater
 {
     class Updater
     {
-        static IEnumerable<string> plugins;
+        // String list initialized with default plugin
+        static IEnumerable<string> plugins = new List<string>() { "plugin" };
 
         static void Main(string[] args)
         {
@@ -22,8 +23,8 @@ namespace winagent_updater
             // This avoids errors when the service starts
             Thread.Sleep(10000);
 
-            // Get plugins to be updated
-            plugins = GetPlugins();
+            // Add plugins to be updated
+            plugins.Concat(GetPlugins());
 
             while (true)
             {
@@ -36,7 +37,7 @@ namespace winagent_updater
         }
 
         
-
+        // Get the plugins to be updated from the config file
         static IEnumerable<string> GetPlugins()
         {
             JObject config = JObject.Parse(File.ReadAllText(@"config.json"));
@@ -60,51 +61,59 @@ namespace winagent_updater
             // Client pointing the cern-winagent repo
             var client = new RestClient("https://api.github.com/repos/cern-winagent/");
 
-            // Request to the latest release
-            var request = new RestRequest("plugin/releases/latest", Method.GET);
-            
-            // Request
-            IRestResponse response = client.Execute(request);
-            if (response.IsSuccessful)
-            {
-                // Capture general errors
-                try
+            foreach (string plugin in plugins) {
+                // Request to the latest release
+                var request = new RestRequest(plugin + "/releases/latest", Method.GET);
+
+                // Request
+                IRestResponse response = client.Execute(request);
+                if (response.IsSuccessful)
                 {
-                    // Consume response
-                    ProcessResponse(response.Content);
+                    // Capture general errors
+                    try
+                    {
+                        // Consume response
+                        ProcessResponse(response.Content);
+                    }
+                    catch
+                    {
+                        using (EventLog eventLog = new EventLog("Application"))
+                        {
+                            // EventID 2 => General error
+                            System.Text.StringBuilder message = new System.Text.StringBuilder("General Error");
+                            message.Append(Environment.NewLine);
+                            message.Append("Plugin: ");
+                            message.Append(plugin);
+                            message.Append(Environment.NewLine);
+                            message.Append("Response StatusCode: ");
+                            message.Append(response.StatusCode);
+                            message.Append(Environment.NewLine);
+                            message.Append("Error Message: ");
+                            message.Append(response.ErrorMessage);
+                            message.Append(Environment.NewLine);
+                            message.Append("Content: ");
+                            message.Append(response.Content);
+
+                            eventLog.Source = "WinagentUpdater";
+                            eventLog.WriteEntry("General error", EventLogEntryType.Error, 2, 1);
+                            eventLog.WriteEntry(message.ToString(), EventLogEntryType.Error, 2, 1);
+                        }
+                    }
                 }
-                catch
+                else
                 {
                     using (EventLog eventLog = new EventLog("Application"))
                     {
-                        // EventID 2 => General error
-                        System.Text.StringBuilder message = new System.Text.StringBuilder("General Error");
-                        message.Append(Environment.NewLine);
-                        message.Append("Response StatusCode: ");
+                        // EventID 1 => Request failed
+                        System.Text.StringBuilder message = new System.Text.StringBuilder("Request failed: ");
                         message.Append(response.StatusCode);
                         message.Append(Environment.NewLine);
-                        message.Append("Error Message: ");
-                        message.Append(response.ErrorMessage);
-                        message.Append(Environment.NewLine);
-                        message.Append("Content: ");
-                        message.Append(response.Content);
+                        message.Append("Plugin: ");
+                        message.Append(plugin);
 
                         eventLog.Source = "WinagentUpdater";
-                        eventLog.WriteEntry("General error", EventLogEntryType.Error, 2, 1);
-                        eventLog.WriteEntry(message.ToString(), EventLogEntryType.Error, 2, 1);
+                        eventLog.WriteEntry(message.ToString(), EventLogEntryType.Error, 1, 1);
                     }
-                }
-            }
-            else
-            {
-                using (EventLog eventLog = new EventLog("Application"))
-                {
-                    // EventID 1 => Request failed
-                    System.Text.StringBuilder message = new System.Text.StringBuilder("Request failed: ");
-                    message.Append(response.StatusCode);
-
-                    eventLog.Source = "WinagentUpdater";
-                    eventLog.WriteEntry(message.ToString(), EventLogEntryType.Error, 1, 1);
                 }
             }
         }
@@ -142,9 +151,9 @@ namespace winagent_updater
                  * EVEN WITH THE TRY-CATCH
                  */
 
-                // Get the service by name
                 try
                 {
+                    // Get the service by name
                     ServiceController serviceController = new ServiceController("Winagent");
                 
                     // Stop the service
