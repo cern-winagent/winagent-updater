@@ -24,7 +24,7 @@ namespace winagent_updater
             Thread.Sleep(10000);
 
             // Add plugins to be updated
-            plugins.Concat(GetPlugins());
+            plugins = plugins.Concat(GetPlugins());
 
             while (true)
             {
@@ -45,10 +45,10 @@ namespace winagent_updater
 
             foreach (JProperty input in ((JObject)config["input"]).Properties())
             {
-                plugins.Add(input.Name);
+                plugins.Add(input.Name.ToLower());
                 foreach (JProperty output in ((JObject)input.Value).Properties())
                 {
-                    plugins.Add(output.Name);
+                    plugins.Add(output.Name.ToLower());
                 }
             }
 
@@ -58,13 +58,16 @@ namespace winagent_updater
 
         static void CheckUpdates()
         {
+            // Dictionary to store filenames and download URLs
+            IDictionary<string, string> toUpdate = new Dictionary<string, string>();
+
             // Client pointing the cern-winagent repo
             var client = new RestClient("https://api.github.com/repos/cern-winagent/");
 
             foreach (string plugin in plugins) {
                 // Request to the latest release
                 var request = new RestRequest(plugin + "/releases/latest", Method.GET);
-
+                Console.WriteLine(plugin);
                 // Request
                 IRestResponse response = client.Execute(request);
                 if (response.IsSuccessful)
@@ -73,7 +76,28 @@ namespace winagent_updater
                     try
                     {
                         // Consume response
-                        ProcessResponse(response.Content);
+                        // Get Info
+                        GitHubRelease release = Newtonsoft.Json.JsonConvert.DeserializeObject<GitHubRelease>(response.Content);
+
+                        // Compare Versions
+                        // Latest Version
+
+                        //TODO: Remove test version
+                        //var latestVersion = new Version(release.Version);
+                        var latestVersion = new Version("5.0.0");
+
+                        // CurrentVersion
+                        FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(@"plugin.dll");
+                        var currentVersion = new Version(versionInfo.FileVersion);
+
+                        // If latestVersion is grather than currentVersion
+                        if (latestVersion.CompareTo(currentVersion) > 0)
+                        {
+                            // Add file (filename, url) to the dictionary
+                            toUpdate = toUpdate.Concat(release.Files.ToDictionary(x => x.Filename, x => x.Url)).ToDictionary(x => x.Key, x => x.Value);
+
+                            
+                        }
                     }
                     catch
                     {
@@ -116,73 +140,59 @@ namespace winagent_updater
                     }
                 }
             }
+            foreach (KeyValuePair<string, string> kvp in toUpdate)
+            {
+
+                //textBox3.Text += ("Key = {0}, Value = {1}", kvp.Key, kvp.Value);
+                Console.WriteLine("Key = {0}, Value = {1}", kvp.Key, kvp.Value);
+            }
         }
 
         private static void ProcessResponse(string responseContent)
         {
 
-            // Get Info
-            GitHubRelease release = Newtonsoft.Json.JsonConvert.DeserializeObject<GitHubRelease>(responseContent);
-
-            // Compare Versions
-            // Latest Version
-
-            //TODO: Remove test version
-            //var latestVersion = new Version(release.Version);
-            var latestVersion = new Version("5.0.0");
-
-            // CurrentVersion
-            FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(@"plugin.dll");
-            var currentVersion = new Version(versionInfo.FileVersion);
-            
-            // If latestVersion is grather than currentVersion
-            if(latestVersion.CompareTo(currentVersion) > 0)
+            /* TODO: For a 5 days test (every 40 seconds) it failed with
+                             *  Service not found: 
+                             *  System.InvalidOperationException: Cannot stop Winagent service on computer '.'. ---System.ComponentModel.Win32Exception: The service has not been started
+                             *      --- End of inner exception stack trace ---
+                             *      at System.ServiceProcess.ServiceController.Stop()
+                             *     at winagent_updater.Updater.ProcessResponse(String responseContent)
+                             *
+                             * EVEN WITH THE TRY-CATCH
+                             */
+/*
+            try
             {
-                // Create dictionary with filenames and download URLs
-                var dictionary = release.Files.ToDictionary(x => x.Filename, x => x.Url);
+                // Get the service by name
+                ServiceController serviceController = new ServiceController("Winagent");
 
-                /* TODO: For a 5 days test (every 40 seconds) it failed with
-                 *  Service not found: 
-                 *  System.InvalidOperationException: Cannot stop Winagent service on computer '.'. ---System.ComponentModel.Win32Exception: The service has not been started
-                 *      --- End of inner exception stack trace ---
-                 *      at System.ServiceProcess.ServiceController.Stop()
-                 *     at winagent_updater.Updater.ProcessResponse(String responseContent)
-                 *
-                 * EVEN WITH THE TRY-CATCH
-                 */
+                // Stop the service
+                serviceController.Stop();
 
-                try
+                // Download files
+                Download(dictionary);
+
+                // TODO: Use checksum for something [it returns bool]
+                // Check integrity
+                Checksum(dictionary);
+
+                // Start the service
+                serviceController.Start();
+            }
+            catch (Exception e)
+            {
+                using (EventLog eventLog = new EventLog("Application"))
                 {
-                    // Get the service by name
-                    ServiceController serviceController = new ServiceController("Winagent");
-                
-                    // Stop the service
-                    serviceController.Stop();
-                
-                    // Download files
-                    Download(dictionary);
+                    // EventID 3 => Service not started
+                    System.Text.StringBuilder message = new System.Text.StringBuilder("Service not started: ");
+                    message.Append(Environment.NewLine);
+                    message.Append(e.ToString());
 
-                    // TODO: Use checksum for something [it returns bool]
-                    // Check integrity
-                    Checksum(dictionary);
-
-                    // Start the service
-                    serviceController.Start();
-                }
-                catch (Exception e)
-                {
-                    using (EventLog eventLog = new EventLog("Application"))
-                    {
-                        // EventID 3 => Service not started
-                        System.Text.StringBuilder message = new System.Text.StringBuilder("Service not started: ");
-                        message.Append(Environment.NewLine);
-                        message.Append(e.ToString());
-
-                        eventLog.Source = "WinagentUpdater";
-                        eventLog.WriteEntry(message.ToString(), EventLogEntryType.Error, 3, 1);
-                    }
+                    eventLog.Source = "WinagentUpdater";
+                    eventLog.WriteEntry(message.ToString(), EventLogEntryType.Error, 3, 1);
                 }
             }
+ */          
         }
 
         private static void Download(Dictionary<string,string> dictionary)
