@@ -14,26 +14,49 @@ namespace winagent_updater
 {
     class Updater
     {
-        // String list initialized with default plugin
-        static IEnumerable<string> plugins = new List<string>() { "plugin" };
+        // List to store the path to each file
+        // Initialized with default files to be updated
+        static IEnumerable<string> plugins = new List<string>()
+        {
+            //TODO: Remove comment when the actual version is ready
+            //@".\winagent.exe",
+            @".\plugin.dll"
+        };
 
         static void Main(string[] args)
         {
             // Delay before the first update
             // This avoids errors when the service starts
-            Thread.Sleep(10000);
+            //Thread.Sleep(10000);
 
             // Add plugins to be updated
             plugins = plugins.Concat(GetPlugins());
+            //while (true)
+            //{
+                // Capture general errors
+                try
+                {
+                    // Main functionality
+                    Update(CheckUpdates());
+                }
+                catch (Exception e)
+                {
+                    // EventID 0 => General Error
+                    using (EventLog eventLog = new EventLog("Application"))
+                    {
+                        System.Text.StringBuilder message = new System.Text.StringBuilder("General Error");
+                        message.Append(Environment.NewLine);
+                        message.Append(e.ToString());
+                        eventLog.Source = "WinagentUpdater";
+                        eventLog.WriteEntry(message.ToString(), EventLogEntryType.Error, 2, 1);
+                    }
+                }
 
-            while (true)
-            {
-                // Main functionality
-                CheckUpdates();
-
-                // Delay betweeen each check
-                Thread.Sleep(30000);
-            }
+                // Delay betweeen each check [24H]
+                // TODO: Change to desired time
+                //Thread.Sleep(3600000);
+                //Thread.Sleep(86400000);
+            //}
         }
 
         
@@ -41,33 +64,39 @@ namespace winagent_updater
         static IEnumerable<string> GetPlugins()
         {
             JObject config = JObject.Parse(File.ReadAllText(@"config.json"));
+
+            // List to store unique plugins
             HashSet<string> plugins = new HashSet<string>();
 
             foreach (JProperty input in ((JObject)config["input"]).Properties())
             {
-                plugins.Add(input.Name.ToLower());
+                plugins.Add(@".\plugins\" + input.Name.ToLower() + ".dll");
                 foreach (JProperty output in ((JObject)input.Value).Properties())
                 {
-                    plugins.Add(output.Name.ToLower());
+                    plugins.Add(@".\plugins\" + output.Name.ToLower() + ".dll");
                 }
             }
 
+            // Return dictionary with the filename and path of the plugins
+            //return plugins.ToDictionary(x => x + ".dll", x => @".\plugins\");
             return plugins;
         }
 
 
-        static void CheckUpdates()
+        static IDictionary<string,string> CheckUpdates()
         {
             // Dictionary to store filenames and download URLs
             IDictionary<string, string> toUpdate = new Dictionary<string, string>();
 
             // Client pointing the cern-winagent repo
-            var client = new RestClient("https://api.github.com/repos/cern-winagent/");
+            RestClient client = new RestClient("https://api.github.com/repos/cern-winagent/");
 
+            // Pair {plugin/repo name, local folder path}
             foreach (string plugin in plugins) {
                 // Request to the latest release
-                var request = new RestRequest(plugin + "/releases/latest", Method.GET);
-                Console.WriteLine(plugin);
+                // Removes the extension to get repo name
+                var request = new RestRequest(Path.GetFileNameWithoutExtension(plugin) + "/releases/latest", Method.GET);
+
                 // Request
                 IRestResponse response = client.Execute(request);
                 if (response.IsSuccessful)
@@ -80,31 +109,43 @@ namespace winagent_updater
                         GitHubRelease release = Newtonsoft.Json.JsonConvert.DeserializeObject<GitHubRelease>(response.Content);
 
                         // Compare Versions
-                        // Latest Version
+                        // Latest Remote Version
 
                         //TODO: Remove test version
                         //var latestVersion = new Version(release.Version);
                         var latestVersion = new Version("5.0.0");
 
                         // CurrentVersion
-                        FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(@"plugin.dll");
-                        var currentVersion = new Version(versionInfo.FileVersion);
+                        Version currentVersion;
+                        if (File.Exists(plugin))
+                        {
+                            FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(plugin);
+                            currentVersion = new Version(versionInfo.FileVersion);
+                        }
+                        else
+                        {
+                            currentVersion = new Version("0.0.0");
+                        }
 
                         // If latestVersion is grather than currentVersion
                         if (latestVersion.CompareTo(currentVersion) > 0)
                         {
-                            // Add file (filename, url) to the dictionary
-                            toUpdate = toUpdate.Concat(release.Files.ToDictionary(x => x.Filename, x => x.Url)).ToDictionary(x => x.Key, x => x.Value);
-
-                            
+                            // Add plugin file {local file path, download url} to the dictionary
+                            // Merge existing dictionarie with news (file + sha1)
+                            // Concat does not return a Dictionary, so .ToDictionary 
+                            toUpdate = toUpdate.Concat(
+                                release.Files.ToDictionary(
+                                    x => Path.GetDirectoryName(plugin) + @"\" + x.Filename, x => x.Url
+                                )
+                            ).ToDictionary(x => x.Key, x => x.Value);
                         }
                     }
-                    catch
+                    catch (Exception e)
                     {
+                        // EventID 2 => General Request Error
                         using (EventLog eventLog = new EventLog("Application"))
                         {
-                            // EventID 2 => General error
-                            System.Text.StringBuilder message = new System.Text.StringBuilder("General Error");
+                            System.Text.StringBuilder message = new System.Text.StringBuilder("General Request Error");
                             message.Append(Environment.NewLine);
                             message.Append("Plugin: ");
                             message.Append(plugin);
@@ -115,20 +156,22 @@ namespace winagent_updater
                             message.Append("Error Message: ");
                             message.Append(response.ErrorMessage);
                             message.Append(Environment.NewLine);
-                            message.Append("Content: ");
+                            message.Append("Exception: ");
+                            message.Append(e.ToString());
+                            message.Append(Environment.NewLine);
+                            message.Append("Response Content: ");
                             message.Append(response.Content);
 
                             eventLog.Source = "WinagentUpdater";
-                            eventLog.WriteEntry("General error", EventLogEntryType.Error, 2, 1);
                             eventLog.WriteEntry(message.ToString(), EventLogEntryType.Error, 2, 1);
                         }
                     }
                 }
                 else
                 {
+                    // EventID 1 => Request failed
                     using (EventLog eventLog = new EventLog("Application"))
                     {
-                        // EventID 1 => Request failed
                         System.Text.StringBuilder message = new System.Text.StringBuilder("Request failed: ");
                         message.Append(response.StatusCode);
                         message.Append(Environment.NewLine);
@@ -140,83 +183,97 @@ namespace winagent_updater
                     }
                 }
             }
-            foreach (KeyValuePair<string, string> kvp in toUpdate)
-            {
 
-                //textBox3.Text += ("Key = {0}, Value = {1}", kvp.Key, kvp.Value);
-                Console.WriteLine("Key = {0}, Value = {1}", kvp.Key, kvp.Value);
-            }
+            return toUpdate;
         }
 
-        private static void ProcessResponse(string responseContent)
+        public static void Update(IDictionary<string, string> toUpdate)
         {
-
-            /* TODO: For a 5 days test (every 40 seconds) it failed with
-                             *  Service not found: 
-                             *  System.InvalidOperationException: Cannot stop Winagent service on computer '.'. ---System.ComponentModel.Win32Exception: The service has not been started
-                             *      --- End of inner exception stack trace ---
-                             *      at System.ServiceProcess.ServiceController.Stop()
-                             *     at winagent_updater.Updater.ProcessResponse(String responseContent)
-                             *
-                             * EVEN WITH THE TRY-CATCH
-                             */
-/*
             try
             {
                 // Get the service by name
                 ServiceController serviceController = new ServiceController("Winagent");
 
-                // Stop the service
-                serviceController.Stop();
-
                 // Download files
-                Download(dictionary);
+                DownloadFiles(toUpdate);
 
                 // TODO: Use checksum for something [it returns bool]
                 // Check integrity
-                Checksum(dictionary);
+                if (Checksum(toUpdate) == false)
+                {
+                    // EventID 6 => Checksum failed
+                    using (EventLog eventLog = new EventLog("Application"))
+                    {
+                        string message = "Checksum failed";
+                        eventLog.Source = "WinagentUpdater";
+                        eventLog.WriteEntry(message, EventLogEntryType.Error, 6, 1);
+                    }
+                }
+                else
+                {
+                    // Stop the service
+                    if(serviceController.Status == ServiceControllerStatus.Running)
+                    {
+                        serviceController.Stop();
+                        serviceController.WaitForStatus(ServiceControllerStatus.Stopped, TimeSpan.FromSeconds(25));
+                    }
 
-                // Start the service
-                serviceController.Start();
+                    // Copy files from the 'tmp' directory
+                    // For each pair -> Download
+                    foreach (KeyValuePair<string, string> file in toUpdate)
+                    {
+                        // Do not copy .sha1 files
+                        if (Path.GetExtension(file.Key) != ".sha1")
+                        {
+                            File.Copy(@".\tmp\" + Path.GetFileName(file.Key), file.Key, true);
+                        }
+                    }
+
+                    // Start the service
+                    // Stop the service
+                    if (serviceController.Status == ServiceControllerStatus.Stopped)
+                    {
+                        serviceController.Start();
+                    }
+                    
+                }
             }
-            catch (Exception e)
+            catch (InvalidOperationException ioe)
             {
+                // EventID 3 => Service not started
                 using (EventLog eventLog = new EventLog("Application"))
                 {
-                    // EventID 3 => Service not started
-                    System.Text.StringBuilder message = new System.Text.StringBuilder("Service not started: ");
+                    System.Text.StringBuilder message = new System.Text.StringBuilder("Service not started");
                     message.Append(Environment.NewLine);
-                    message.Append(e.ToString());
+                    message.Append(ioe.ToString());
 
                     eventLog.Source = "WinagentUpdater";
                     eventLog.WriteEntry(message.ToString(), EventLogEntryType.Error, 3, 1);
                 }
             }
- */          
         }
 
-        private static void Download(Dictionary<string,string> dictionary)
+        private static void DownloadFiles(IDictionary<string,string> toUpdate)
         {
             var downladClient = new RestClient("https://github.com/cern-winagent/");
 
             // For each pair -> Download
-            foreach (KeyValuePair<string, string> kvp in dictionary)
+            foreach (KeyValuePair<string, string> file in toUpdate)
             {
                 // Download from URL
-                var downloadRequest = new RestRequest(kvp.Value, Method.GET);
-
-                // Save as filename
-                // Save in the right folder
+                var downloadRequest = new RestRequest(file.Value, Method.GET);
 
                 try
                 {
-                    downladClient.DownloadData(downloadRequest).SaveAs(kvp.Key);
+                    // Save as filename
+                    // Save in the right folder
+                    downladClient.DownloadData(downloadRequest).SaveAs(@".\tmp\" + Path.GetFileName(file.Key));
                 }
                 catch(ArgumentNullException ane)
                 {
+                    // EventID 4 => Could not write the file
                     using (EventLog eventLog = new EventLog("Application"))
                     {
-                        // EventID 4 => Could not write the file
                         System.Text.StringBuilder message = new System.Text.StringBuilder("File could not be saved: ");
                         message.Append(Environment.NewLine);
                         message.Append(ane.ToString());
@@ -225,20 +282,42 @@ namespace winagent_updater
                         eventLog.WriteEntry(message.ToString(), EventLogEntryType.Error, 4, 1);
                     }
                 }
+                catch (DirectoryNotFoundException dnf)
+                {
+                    // EventID 5 => "tmp" Directory not found
+                    using (EventLog eventLog = new EventLog("Application"))
+                    {
+                        System.Text.StringBuilder message = new System.Text.StringBuilder("File could not be saved: 'tmp' directory not found");
+                        message.Append(Environment.NewLine);
+                        message.Append("The directory will be created autimatically");
+                        message.Append(Environment.NewLine);
+                        message.Append(dnf.ToString());
+
+                        eventLog.Source = "WinagentUpdater";
+                        eventLog.WriteEntry(message.ToString(), EventLogEntryType.Information, 5, 1);
+                    }
+
+                    // Create 'tmp' directory
+                    Directory.CreateDirectory("tmp");
+
+                    // Retry download after the folder creation
+                    downladClient.DownloadData(downloadRequest).SaveAs(@".\tmp\" + Path.GetFileName(file.Key));
+                }
             }
         }
 
-        private static Boolean Checksum(Dictionary<string,string> dictionary)
+        private static Boolean Checksum(IDictionary<string,string> dictionary)
         {
-
             // Check checksum
-            foreach (KeyValuePair<string, string> kvp in dictionary)
+            foreach (KeyValuePair<string, string> kpv in dictionary)
             {
+                string tempFile = @".\tmp\" + Path.GetFileName(kpv.Key);
+
                 // If it's not a checksumfile
-                if (Path.GetExtension(kvp.Key) != ".sha1")
+                if (Path.GetExtension(tempFile) != ".sha1")
                 {
                     // Calculate and compare with the pertinent checksum
-                    if (CalculateChecksum(kvp.Key) != ReadChecksum(kvp.Key + ".sha1"))
+                    if (CalculateChecksum(tempFile) != ReadChecksum(tempFile + ".sha1"))
                     {
                         // Fail if checksums doesn't match
                         return false;
