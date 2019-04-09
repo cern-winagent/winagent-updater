@@ -1,0 +1,18 @@
+language: csharp
+solution: winagent-updater.sln
+script:
+- msbuild /p:Configuration=Release winagent-updater.sln
+before_deploy:
+- sha1sum winagent-updater/bin/Release/winagent-updater.exe > winagent-updater/bin/Release/winagent-updater.exe.sha1
+deploy:
+  provider: releases
+  api_key:
+    secure: SOI0UWDW3WEGDh88cf36gXIIoeI7wio+Brri4I/baB/90VjZq2PeoiX29D96zLCvvd3MB+B7JXthhBzF+bT1+0a8btL/LhCuIngOtRWfmtzL2uQXoY2UbyWWJJNM115Lj7sF/aDY7xjii0sPbYz4A62c3iQpcH0LE3NK1juRyR/EOmrFxlvqoVCtG3Mr3pne6pMSSR2cxPMS1gyOM637Dr422AOWdKL0t+6Gf7TaUNCFizX0nvOlQi0YvcVdgl1TB6k1lIJEJFzL2vQJtLQDqVBJkn2yp8T8jBSbaZXZx04kcASZzVl8s9rccCXb5k+bQVWgcgrkhhPDDB4P8Iak5yduLDCRXyNADXqEY3+xJnipkGvuUf0rQg3sU0MQLntldE4qSml3F8Lsr4gDRAfkqMgwKxUFO8pf68KpQEJAaTHV1MSY15hspF8pHdDaoIxBICaIg3zC+m5tNHU9VKiy3MHa+0s5ww+14FhOSMdjiclZNEoiXVmPF0o9jVFAMF1Oo/iLKMFyKwFyNexAUpgwsckph83hdt6ZlzY4jbVYdgZnGBSbrBUG+0LWMelT1U5/5FDj5O4ABAhuIXfK+bE5DJNANdAKdWg0TDZCI9KLtclot/CsrjVCk+6iGRsqZFz8CVJps3r9j1vTqG2dwuJ3ubXWUG7NZZJFHyv/YUra2CA=
+  file:
+  - winagent-updater/bin/Release/winagent-updater.exe
+  - winagent-updater/bin/Release/winagent-updater.exe.sha1
+  skip_cleanup: true
+  overwrite: true
+  on:
+    repo: cern-winagent/winagent-updater
+    tags: true
