@@ -19,8 +19,9 @@ namespace winagent_updater
         static IEnumerable<string> plugins = new List<string>()
         {
             //TODO: Remove comment when the actual version is ready
-            //@".\winagent.exe",
-            @".\plugin.dll"
+            @".\winagent.exe",
+            @".\plugin.dll",
+            @".\winagent-updater.exe"
         };
 
         static void Main(string[] args)
@@ -37,7 +38,13 @@ namespace winagent_updater
                 try
                 {
                     // Main functionality
-                    Update(CheckUpdates());
+                    var updates = CheckUpdates();
+
+                    // If there are updates to be done
+                    if(updates.Count > 0)
+                    {
+                        Update(updates);
+                    }
                 }
                 catch (Exception e)
                 {
@@ -110,10 +117,7 @@ namespace winagent_updater
 
                         // Compare Versions
                         // Latest Remote Version
-
-                        //TODO: Remove test version
-                        //var latestVersion = new Version(release.Version);
-                        var latestVersion = new Version("5.0.0");
+                        var latestVersion = new Version(release.Version);
 
                         // CurrentVersion
                         Version currentVersion;
@@ -177,6 +181,9 @@ namespace winagent_updater
                         message.Append(Environment.NewLine);
                         message.Append("Plugin: ");
                         message.Append(plugin);
+                        message.Append(Environment.NewLine);
+                        message.Append("Request: ");
+                        message.Append(client.BuildUri(request));
 
                         eventLog.Source = "WinagentUpdater";
                         eventLog.WriteEntry(message.ToString(), EventLogEntryType.Error, 1, 1);
@@ -211,6 +218,9 @@ namespace winagent_updater
                 }
                 else
                 {
+                    // Remove winagent-updater from dictionary so it is not copied
+                    // The updater will be copied brefore the next update
+
                     // Stop the service
                     if(serviceController.Status == ServiceControllerStatus.Running)
                     {
