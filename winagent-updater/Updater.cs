@@ -220,27 +220,21 @@ namespace winagent_updater
                 {
                     // Remove winagent-updater from dictionary so it is not copied
                     // The updater will be copied brefore the next update
+                    toUpdate.Remove(@".\winagent-updater.exe");
 
                     // Stop the service
-                    if(serviceController.Status == ServiceControllerStatus.Running)
+                    if (serviceController.Status == ServiceControllerStatus.Running)
                     {
                         serviceController.Stop();
                         serviceController.WaitForStatus(ServiceControllerStatus.Stopped, TimeSpan.FromSeconds(25));
                     }
 
-                    // Copy files from the 'tmp' directory
-                    // For each pair -> Download
-                    foreach (KeyValuePair<string, string> file in toUpdate)
+                    if(toUpdate.Count > 0)
                     {
-                        // Do not copy .sha1 files
-                        if (Path.GetExtension(file.Key) != ".sha1")
-                        {
-                            File.Copy(@".\tmp\" + Path.GetFileName(file.Key), file.Key, true);
-                        }
+                        CopyFiles(toUpdate);
                     }
 
-                    // Start the service
-                    // Stop the service
+                    //TODO: do not copy updater if it is being used
                     if (serviceController.Status == ServiceControllerStatus.Stopped)
                     {
                         serviceController.Start();
@@ -278,16 +272,6 @@ namespace winagent_updater
                     // Save as filename
                     // Save in the right folder
                     downladClient.DownloadData(downloadRequest).SaveAs(@".\tmp\" + Path.GetFileName(file.Key));
-
-                    // EventID 7 => Application updated
-                    using (EventLog eventLog = new EventLog("Application"))
-                    {
-                        System.Text.StringBuilder message = new System.Text.StringBuilder("Application updated");
-                        message.Append(Environment.NewLine);
-                        message.Append(file.Key);
-                        eventLog.Source = "WinagentUpdater";
-                        eventLog.WriteEntry(message.ToString(), EventLogEntryType.Information, 7, 1);
-                    }
                 }
                 catch(ArgumentNullException ane)
                 {
@@ -322,6 +306,30 @@ namespace winagent_updater
 
                     // Retry download after the folder creation
                     downladClient.DownloadData(downloadRequest).SaveAs(@".\tmp\" + Path.GetFileName(file.Key));
+                }
+            }
+        }
+
+        private static void CopyFiles(IDictionary<string,string> toUpdate)
+        {
+            // Copy files from the 'tmp' directory
+            // For each pair -> Download
+            foreach (KeyValuePair<string, string> file in toUpdate)
+            {
+                // Do not copy .sha1 files
+                if (Path.GetExtension(file.Key) != ".sha1")
+                {
+                    File.Copy(@".\tmp\" + Path.GetFileName(file.Key), file.Key, true);
+
+                    // EventID 7 => Application updated
+                    using (EventLog eventLog = new EventLog("Application"))
+                    {
+                        System.Text.StringBuilder message = new System.Text.StringBuilder("Application updated");
+                        message.Append(Environment.NewLine);
+                        message.Append(file.Key);
+                        eventLog.Source = "WinagentUpdater";
+                        eventLog.WriteEntry(message.ToString(), EventLogEntryType.Information, 7, 1);
+                    }
                 }
             }
         }
