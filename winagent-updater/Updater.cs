@@ -55,7 +55,7 @@ namespace winagent_updater
                         message.Append(Environment.NewLine);
                         message.Append(e.ToString());
                         eventLog.Source = "WinagentUpdater";
-                        eventLog.WriteEntry(message.ToString(), EventLogEntryType.Error, 2, 1);
+                        eventLog.WriteEntry(message.ToString(), EventLogEntryType.Error, 0, 1);
                     }
                 }
 
@@ -278,6 +278,16 @@ namespace winagent_updater
                     // Save as filename
                     // Save in the right folder
                     downladClient.DownloadData(downloadRequest).SaveAs(@".\tmp\" + Path.GetFileName(file.Key));
+
+                    // EventID 7 => Application updated
+                    using (EventLog eventLog = new EventLog("Application"))
+                    {
+                        System.Text.StringBuilder message = new System.Text.StringBuilder("Application updated");
+                        message.Append(Environment.NewLine);
+                        message.Append(file.Key);
+                        eventLog.Source = "WinagentUpdater";
+                        eventLog.WriteEntry(message.ToString(), EventLogEntryType.Information, 7, 1);
+                    }
                 }
                 catch(ArgumentNullException ane)
                 {
