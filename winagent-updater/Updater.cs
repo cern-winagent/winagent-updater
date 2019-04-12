@@ -229,23 +229,27 @@ namespace winagent_updater
                         Console.WriteLine("Key = {0}, Value = {1}", kvp.Key, kvp.Value);
                     }
 
-                    // Stop the service
-                    if (serviceController.Status == ServiceControllerStatus.Running)
-                    {
-                        serviceController.Stop();
-                        serviceController.WaitForStatus(ServiceControllerStatus.Stopped, TimeSpan.FromSeconds(25));
-                    }
-
+                    
+                    // If there is something to be updated...
                     if(toUpdate.Count > 0)
                     {
+                        // Stop the service
+                        if (serviceController.Status == ServiceControllerStatus.Running)
+                        {
+                            serviceController.Stop();
+                            serviceController.WaitForStatus(ServiceControllerStatus.Stopped, TimeSpan.FromSeconds(25));
+                        }
+
                         CopyFiles(toUpdate);
+
+                        //TODO: do not copy updater if it is being used
+                        if (serviceController.Status == ServiceControllerStatus.Stopped)
+                        {
+                            serviceController.Start();
+                        }
                     }
 
-                    //TODO: do not copy updater if it is being used
-                    if (serviceController.Status == ServiceControllerStatus.Stopped)
-                    {
-                        serviceController.Start();
-                    }
+                    
                     
                 }
             }
