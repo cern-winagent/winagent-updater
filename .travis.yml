@@ -1,7 +1,7 @@
 language: csharp
 solution: winagent-updater.sln
 script:
-- msbuild /p:Configuration=Release winagent-updater.sln
+- msbuild /p:Configuration=Release;VersionAssembly=$TRAVIS_TAG winagent-updater.sln
 before_deploy:
 - sha1sum winagent-updater/bin/Release/winagent-updater.exe > winagent-updater/bin/Release/winagent-updater.exe.sha1
 deploy:

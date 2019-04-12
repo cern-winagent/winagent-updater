@@ -18,7 +18,6 @@ namespace winagent_updater
         // Initialized with default files to be updated
         static IEnumerable<string> plugins = new List<string>()
         {
-            //TODO: Remove comment when the actual version is ready
             @".\winagent.exe",
             @".\plugin.dll",
             @".\winagent-updater.exe"
@@ -26,44 +25,32 @@ namespace winagent_updater
 
         static void Main(string[] args)
         {
-            // Delay before the first update
-            // This avoids errors when the service starts
-            //Thread.Sleep(10000);
-
             // Add plugins to be updated
             plugins = plugins.Concat(GetPlugins());
-            //while (true)
-            //{
-                // Capture general errors
-                try
-                {
-                    // Main functionality
-                    var updates = CheckUpdates();
+            // Capture general errors
+            try
+            {
+                // Main functionality
+                var updates = CheckUpdates();
 
-                    // If there are updates to be done
-                    if(updates.Count > 0)
-                    {
-                        Update(updates);
-                    }
-                }
-                catch (Exception e)
+                // If there are updates to be done
+                if(updates.Count > 0)
                 {
-                    // EventID 0 => General Error
-                    using (EventLog eventLog = new EventLog("Application"))
-                    {
-                        System.Text.StringBuilder message = new System.Text.StringBuilder("General Error");
-                        message.Append(Environment.NewLine);
-                        message.Append(e.ToString());
-                        eventLog.Source = "WinagentUpdater";
-                        eventLog.WriteEntry(message.ToString(), EventLogEntryType.Error, 0, 1);
-                    }
+                    Update(updates);
                 }
-
-                // Delay betweeen each check [24H]
-                // TODO: Change to desired time
-                //Thread.Sleep(3600000);
-                //Thread.Sleep(86400000);
-            //}
+            }
+            catch (Exception e)
+            {
+                // EventID 0 => General Error
+                using (EventLog eventLog = new EventLog("Application"))
+                {
+                    System.Text.StringBuilder message = new System.Text.StringBuilder("General Error");
+                    message.Append(Environment.NewLine);
+                    message.Append(e.ToString());
+                    eventLog.Source = "WinagentUpdater";
+                    eventLog.WriteEntry(message.ToString(), EventLogEntryType.Error, 0, 1);
+                }
+            }
         }
 
         
@@ -204,7 +191,6 @@ namespace winagent_updater
                 // Download files
                 DownloadFiles(toUpdate);
 
-                // TODO: Use checksum for something [it returns bool]
                 // Check integrity
                 if (Checksum(toUpdate) == false)
                 {
@@ -223,6 +209,8 @@ namespace winagent_updater
                     toUpdate.Remove(@".\winagent-updater.exe");
                     toUpdate.Remove(@".\winagent-updater.exe.sha1");
 
+
+                    // TODO: REMOVE
                     foreach (KeyValuePair<string, string> kvp in toUpdate)
                     {
                         //textBox3.Text += ("Key = {0}, Value = {1}", kvp.Key, kvp.Value);
@@ -242,15 +230,11 @@ namespace winagent_updater
 
                         CopyFiles(toUpdate);
 
-                        //TODO: do not copy updater if it is being used
                         if (serviceController.Status == ServiceControllerStatus.Stopped)
                         {
                             serviceController.Start();
                         }
                     }
-
-                    
-                    
                 }
             }
             catch (InvalidOperationException ioe)
