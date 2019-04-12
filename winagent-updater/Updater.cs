@@ -182,7 +182,7 @@ namespace winagent_updater
                         message.Append("Plugin: ");
                         message.Append(plugin);
                         message.Append(Environment.NewLine);
-                        message.Append("Request: ");
+                        message.Append("RequestURL: ");
                         message.Append(client.BuildUri(request));
 
                         eventLog.Source = "WinagentUpdater";
@@ -221,6 +221,13 @@ namespace winagent_updater
                     // Remove winagent-updater from dictionary so it is not copied
                     // The updater will be copied brefore the next update
                     toUpdate.Remove(@".\winagent-updater.exe");
+                    toUpdate.Remove(@".\winagent-updater.exe.sha1");
+
+                    foreach (KeyValuePair<string, string> kvp in toUpdate)
+                    {
+                        //textBox3.Text += ("Key = {0}, Value = {1}", kvp.Key, kvp.Value);
+                        Console.WriteLine("Key = {0}, Value = {1}", kvp.Key, kvp.Value);
+                    }
 
                     // Stop the service
                     if (serviceController.Status == ServiceControllerStatus.Running)
