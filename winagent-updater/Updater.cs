@@ -51,6 +51,16 @@ namespace winagent_updater
                     eventLog.WriteEntry(message.ToString(), EventLogEntryType.Error, 0, 1);
                 }
             }
+            finally
+            {
+                // EventID 8 => Execution finished
+                using (EventLog eventLog = new EventLog("Application"))
+                {
+                    System.Text.StringBuilder message = new System.Text.StringBuilder("Auto-update execution finished");
+                    eventLog.Source = "WinagentUpdater";
+                    eventLog.WriteEntry(message.ToString(), EventLogEntryType.Information, 8, 1);
+                }
+            }
         }
 
         
