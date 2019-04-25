@@ -367,13 +367,16 @@ namespace winagent_updater
             using (BufferedStream bs = new BufferedStream(fs))
             using (var cryptoProvider = new SHA1CryptoServiceProvider())
             {
-                return BitConverter.ToString(cryptoProvider.ComputeHash(bs)).Replace("-", string.Empty).ToLower();
+                return BitConverter.ToString(cryptoProvider.ComputeHash(bs)).Replace("-", string.Empty);
             }
         }
 
         private static string ReadChecksum(string filePath)
         {
-            return File.ReadAllText(filePath).Split(' ')[0];
+            using (StreamReader reader = new StreamReader(filePath))
+            {
+                return reader.ReadLine();
+            }
         }
     }
 }
