@@ -25,11 +25,12 @@ namespace winagent_updater
 
         static void Main(string[] args)
         {
-            // Add plugins to be updated
-            plugins = plugins.Concat(GetPlugins());
             // Capture general errors
             try
             {
+                // Add plugins to be updated
+                plugins = plugins.Concat(GetPlugins());
+
                 // Main functionality
                 var updates = CheckUpdates();
 
@@ -72,7 +73,7 @@ namespace winagent_updater
             // List to store unique plugins
             HashSet<string> plugins = new HashSet<string>();
 
-            foreach (JProperty input in ((JObject)config["input"]).Properties())
+            foreach (JProperty input in ((JObject)config["plugins"]).Properties())
             {
                 plugins.Add(@".\plugins\" + input.Name.ToLower() + ".dll");
                 foreach (JProperty output in ((JObject)input.Value).Properties())
@@ -80,7 +81,7 @@ namespace winagent_updater
                     plugins.Add(@".\plugins\" + output.Name.ToLower() + ".dll");
                 }
             }
-
+            
             // Return dictionary with the filename and path of the plugins
             //return plugins.ToDictionary(x => x + ".dll", x => @".\plugins\");
             return plugins;
@@ -218,15 +219,6 @@ namespace winagent_updater
                     // The updater will be copied brefore the next update
                     toUpdate.Remove(@".\winagent-updater.exe");
                     toUpdate.Remove(@".\winagent-updater.exe.sha1");
-
-
-                    // TODO: REMOVE
-                    foreach (KeyValuePair<string, string> kvp in toUpdate)
-                    {
-                        //textBox3.Text += ("Key = {0}, Value = {1}", kvp.Key, kvp.Value);
-                        Console.WriteLine("Key = {0}, Value = {1}", kvp.Key, kvp.Value);
-                    }
-
                     
                     // If there is something to be updated...
                     if(toUpdate.Count > 0)
@@ -237,6 +229,8 @@ namespace winagent_updater
                             serviceController.Stop();
                             serviceController.WaitForStatus(ServiceControllerStatus.Stopped, TimeSpan.FromSeconds(25));
                         }
+                        // TODO: HERE
+                        // Files are being copied while winagent.exe is still in use
 
                         CopyFiles(toUpdate);
 
