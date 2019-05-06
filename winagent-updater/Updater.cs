@@ -229,9 +229,11 @@ namespace winagent_updater
                             serviceController.Stop();
                             serviceController.WaitForStatus(ServiceControllerStatus.Stopped, TimeSpan.FromSeconds(25));
                         }
-                        // TODO: HERE
-                        // Files are being copied while winagent.exe is still in use
 
+                        // Files are being copied while winagent.exe is still in use
+                        // So wait
+                        // TODO: This should be changed at some point
+                        Thread.Sleep(5000);
                         CopyFiles(toUpdate);
 
                         if (serviceController.Status == ServiceControllerStatus.Stopped)
