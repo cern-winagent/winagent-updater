@@ -23,16 +23,32 @@ namespace winagent_updater
             @".\winagent-updater.exe"
         };
 
+        static bool gitlab;
+
         static void Main(string[] args)
         {
             // Capture general errors
             try
             {
+                // Read config file
+                JObject config = JObject.Parse(File.ReadAllText(@"config.json"));
+
                 // Add plugins to be updated
-                plugins = plugins.Concat(GetPlugins());
+                plugins = plugins.Concat(GetPlugins(config));
+
+                // Check remote
+                gitlab = config["autoupdates"].SelectToken("source").ToString().ToLower().Equals("gitlab");
 
                 // Main functionality
-                var updates = CheckUpdates();
+                IDictionary<string,string> updates;
+                if (gitlab)
+                {
+                    updates = CheckGitLabUpdates();
+                }
+                else
+                {
+                    updates = CheckGitHubUpdates(); ;
+                }
 
                 // If there are updates to be done
                 if(updates.Count > 0)
@@ -66,10 +82,8 @@ namespace winagent_updater
 
         
         // Get the plugins to be updated from the config file
-        static IEnumerable<string> GetPlugins()
+        static IEnumerable<string> GetPlugins(JObject config)
         {
-            JObject config = JObject.Parse(File.ReadAllText(@"config.json"));
-
             // List to store unique plugins
             HashSet<string> plugins = new HashSet<string>();
 
@@ -82,28 +96,25 @@ namespace winagent_updater
                 }
             }
             
-            // Return dictionary with the filename and path of the plugins
-            //return plugins.ToDictionary(x => x + ".dll", x => @".\plugins\");
             return plugins;
         }
 
-
-        static IDictionary<string,string> CheckUpdates()
+        static IDictionary<string,string> CheckGitHubUpdates()
         {
             // Dictionary to store filenames and download URLs
             IDictionary<string, string> toUpdate = new Dictionary<string, string>();
 
             // Client pointing the cern-winagent repo
-            RestClient client = new RestClient("https://api.github.com/repos/cern-winagent/");
+            RestClient apiClient = new RestClient("https://api.github.com/repos/cern-winagent/");
 
             // Pair {plugin/repo name, local folder path}
             foreach (string plugin in plugins) {
-                // Request to the latest release
+                // Request to the latest releasel
                 // Removes the extension to get repo name
-                var request = new RestRequest(Path.GetFileNameWithoutExtension(plugin) + "/releases/latest", Method.GET);
+                var request = new RestRequest(string.Format("https://api.github.com/repos/cern-winagent/{0}/releases/latest", Path.GetFileNameWithoutExtension(plugin)), Method.GET);
 
                 // Request
-                IRestResponse response = client.Execute(request);
+                IRestResponse response = apiClient.Execute(request);
                 if (response.IsSuccessful)
                 {
                     // Capture general errors
@@ -112,7 +123,7 @@ namespace winagent_updater
                         // Consume response
                         // Get Info
                         GitHubRelease release = Newtonsoft.Json.JsonConvert.DeserializeObject<GitHubRelease>(response.Content);
-
+                        
                         // Compare Versions
                         // Latest Remote Version
                         var latestVersion = new Version(release.Version);
@@ -181,7 +192,7 @@ namespace winagent_updater
                         message.Append(plugin);
                         message.Append(Environment.NewLine);
                         message.Append("RequestURL: ");
-                        message.Append(client.BuildUri(request));
+                        message.Append(apiClient.BuildUri(request));
 
                         eventLog.Source = "WinagentUpdater";
                         eventLog.WriteEntry(message.ToString(), EventLogEntryType.Error, 1, 1);
@@ -192,7 +203,112 @@ namespace winagent_updater
             return toUpdate;
         }
 
-        public static void Update(IDictionary<string, string> toUpdate)
+        static IDictionary<string, string> CheckGitLabUpdates()
+        {
+            // Dictionary to store filenames and download URLs
+            IDictionary<string, string> toUpdate = new Dictionary<string, string>();
+
+            // Client pointing the cern-winagent repo
+            RestClient apiClient = new RestClient("https://gitlab.cern.ch/api/v4/projects/");
+
+            // Pair {plugin/repo name, local folder path}
+            foreach (string plugin in plugins)
+            {
+                // Request to the latest releasel
+                // Removes the extension to get repo name
+                var request = new RestRequest(string.Format("https://gitlab.cern.ch/api/v4/projects/winagent%2F{0}/releases/latest", Path.GetFileNameWithoutExtension(plugin)), Method.GET);
+
+                // Request
+                IRestResponse response = apiClient.Execute(request);
+                if (response.IsSuccessful)
+                {
+                    // Capture general errors
+                    try
+                    {
+                        // Consume response
+                        // Get Info
+                        GitLabRelease release = Newtonsoft.Json.JsonConvert.DeserializeObject<GitLabRelease>(response.Content);
+
+                        // Compare Versions
+                        // Latest Remote Version
+                        var latestVersion = new Version(release.Version);
+
+                        // CurrentVersion
+                        Version currentVersion;
+                        if (File.Exists(plugin))
+                        {
+                            FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(plugin);
+                            currentVersion = new Version(versionInfo.FileVersion);
+                        }
+                        else
+                        {
+                            currentVersion = new Version("0.0.0");
+                        }
+
+                        // If latestVersion is grather than currentVersion
+                        if (latestVersion.CompareTo(currentVersion) > 0)
+                        {
+                            // Add plugin file {local file path, download url} to the dictionary
+                            // Merge existing dictionarie with news (file + sha1)
+                            // Concat does not return a Dictionary, so .ToDictionary 
+                            toUpdate = toUpdate.Concat(
+                                release.Assets.Files.ToDictionary(
+                                    x => Path.GetDirectoryName(plugin) + @"\" + x.Filename, x => x.Url
+                                )
+                            ).ToDictionary(x => x.Key, x => x.Value);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        // EventID 2 => General Request Error
+                        using (EventLog eventLog = new EventLog("Application"))
+                        {
+                            System.Text.StringBuilder message = new System.Text.StringBuilder("General Request Error");
+                            message.Append(Environment.NewLine);
+                            message.Append("Plugin: ");
+                            message.Append(plugin);
+                            message.Append(Environment.NewLine);
+                            message.Append("Response StatusCode: ");
+                            message.Append(response.StatusCode);
+                            message.Append(Environment.NewLine);
+                            message.Append("Error Message: ");
+                            message.Append(response.ErrorMessage);
+                            message.Append(Environment.NewLine);
+                            message.Append("Exception: ");
+                            message.Append(e.ToString());
+                            message.Append(Environment.NewLine);
+                            message.Append("Response Content: ");
+                            message.Append(response.Content);
+
+                            eventLog.Source = "WinagentUpdater";
+                            eventLog.WriteEntry(message.ToString(), EventLogEntryType.Error, 2, 1);
+                        }
+                    }
+                }
+                else
+                {
+                    // EventID 1 => Request failed
+                    using (EventLog eventLog = new EventLog("Application"))
+                    {
+                        System.Text.StringBuilder message = new System.Text.StringBuilder("Request failed: ");
+                        message.Append(response.StatusCode);
+                        message.Append(Environment.NewLine);
+                        message.Append("Plugin: ");
+                        message.Append(plugin);
+                        message.Append(Environment.NewLine);
+                        message.Append("RequestURL: ");
+                        message.Append(apiClient.BuildUri(request));
+
+                        eventLog.Source = "WinagentUpdater";
+                        eventLog.WriteEntry(message.ToString(), EventLogEntryType.Error, 1, 1);
+                    }
+                }
+            }
+
+            return toUpdate;
+        }
+
+        private static void Update(IDictionary<string, string> toUpdate)
         {
             try
             {
@@ -260,7 +376,10 @@ namespace winagent_updater
 
         private static void DownloadFiles(IDictionary<string,string> toUpdate)
         {
-            var downladClient = new RestClient("https://github.com/cern-winagent/");
+            // RestClient needs an URI, it's ignored if a full URI is specified in the request
+            // <seealso> https://github.com/restsharp/RestSharp/issues/606
+            // This solution is general for both of the current sources (gitlab/github)
+            var downladClient = new RestClient("https://bar.foo");
 
             // For each pair -> Download
             foreach (KeyValuePair<string, string> file in toUpdate)
