@@ -30,14 +30,14 @@ namespace winagent_updater
             // Capture general errors
             try
             {
-                // Read config file
-                JObject config = JObject.Parse(File.ReadAllText(@"config.json"));
+                // Read settings file
+                Settings.Agent settings = GetSettings();
 
                 // Add plugins to be updated
-                plugins = plugins.Concat(GetPlugins(config));
+                plugins = plugins.Concat(GetPlugins(settings.InputPlugins));
 
                 // Check remote
-                gitlab = config["autoupdates"].SelectToken("source").ToString().ToLower().Equals("gitlab");
+                gitlab = settings.AutoUpdates.Source.Equals("gitlab");
 
                 // Main functionality
                 IDictionary<string,string> updates;
@@ -80,17 +80,72 @@ namespace winagent_updater
             }
         }
 
-        
-        // Get the plugins to be updated from the config file
-        static IEnumerable<string> GetPlugins(JObject config)
+        /// <summary>
+        /// Parse settings
+        /// </summary>
+        /// <exception cref="FileNotFoundException">Thrown when the settings file could not be found</exception>
+        /// <exception cref="Newtonsoft.Json.JsonSerializationException">Thrown when the content of the settings file is incorrect</exception>
+        /// <exception cref="Exception">Thrown when a different error occurs</exception>
+        internal static Settings.Agent GetSettings(string path = @"config.json")
+        {
+            try
+            {
+                // Content of the configuration file "settings.json"
+                return Newtonsoft.Json.JsonConvert.DeserializeObject<Settings.Agent>(File.ReadAllText(path));
+            }
+            catch (FileNotFoundException fnfe)
+            {
+                // EventID 6 => Service not started
+                using (EventLog eventLog = new EventLog("Application"))
+                {
+                    System.Text.StringBuilder message = new System.Text.StringBuilder(String.Format("The specified path \"{0}\" does not appear to be valid", path));
+                    message.Append(Environment.NewLine);
+                    message.Append(fnfe.ToString());
+
+                    eventLog.Source = "WinagentUpdater";
+                    eventLog.WriteEntry(message.ToString(), EventLogEntryType.Error, 6, 1);
+                }
+            }
+            catch (Newtonsoft.Json.JsonSerializationException jse)
+            {
+                // EventID 7 => Error in settings file
+
+                using (EventLog eventLog = new EventLog("Application"))
+                {
+                    System.Text.StringBuilder message = new System.Text.StringBuilder(String.Format("The agent could not parse the config file, please check the syntax", path));
+                    message.Append(Environment.NewLine);
+                    message.Append(jse.ToString());
+
+                    eventLog.Source = "WinagentUpdater";
+                    eventLog.WriteEntry(message.ToString(), EventLogEntryType.Error, 7, 1);
+                }
+            }
+            catch (Exception e)
+            {
+                // EventID 8 => Error while parsing the settings file
+                using (EventLog eventLog = new EventLog("Application"))
+                {
+                    System.Text.StringBuilder message = new System.Text.StringBuilder(String.Format("An undefined error occurred while parsing the config file", path));
+                    message.Append(Environment.NewLine);
+                    message.Append(e.ToString());
+
+                    eventLog.Source = "WinagentUpdater";
+                    eventLog.WriteEntry(message.ToString(), EventLogEntryType.Error, 8, 1);
+                }
+            }
+            return null;
+        }
+
+        // Get the plugins to be updated from the settings file
+        static IEnumerable<string> GetPlugins(List<Settings.InputPlugin> inputPlugins)
         {
             // List to store unique plugins
             HashSet<string> plugins = new HashSet<string>();
 
-            foreach (JProperty input in ((JObject)config["plugins"]).Properties())
+            foreach (Settings.InputPlugin input in inputPlugins)
             {
                 plugins.Add(@".\plugins\" + input.Name.ToLower() + ".dll");
-                foreach (JProperty output in ((JObject)input.Value).Properties())
+                foreach (Settings.OutputPlugin output in input.OutputPlugins)
                 {
                     plugins.Add(@".\plugins\" + output.Name.ToLower() + ".dll");
                 }

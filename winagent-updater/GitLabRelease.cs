@@ -16,7 +16,7 @@ namespace winagent_updater
         }
         #endregion
 
-        #region Nested class to identify assets
+        #region Nested class to identify asset lists
         public class AssetList
         {
             [JsonProperty(PropertyName = "links")]
