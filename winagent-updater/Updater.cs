@@ -109,7 +109,6 @@ namespace winagent_updater
             catch (Newtonsoft.Json.JsonSerializationException jse)
             {
                 // EventID 7 => Error in settings file
-
                 using (EventLog eventLog = new EventLog("Application"))
                 {
                     System.Text.StringBuilder message = new System.Text.StringBuilder(String.Format("The agent could not parse the config file, please check the syntax", path));
