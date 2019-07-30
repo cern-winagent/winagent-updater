@@ -6,9 +6,10 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.ServiceProcess;
 using System.Threading;
-using Newtonsoft.Json.Linq;
 using RestSharp;
 using RestSharp.Extensions;
+
+using winagent_updater.Models;
 
 namespace winagent_updater
 {
@@ -306,7 +307,7 @@ namespace winagent_updater
                             // Merge existing dictionarie with news (file + sha1)
                             // Concat does not return a Dictionary, so .ToDictionary 
                             toUpdate = toUpdate.Concat(
-                                release.Assets.Files.ToDictionary(
+                                release.Files.ToDictionary(
                                     x => Path.GetDirectoryName(plugin) + @"\" + x.Filename, x => x.Url
                                 )
                             ).ToDictionary(x => x.Key, x => x.Value);

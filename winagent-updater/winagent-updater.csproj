@@ -63,8 +63,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="GitHubRelease.cs" />
-    <Compile Include="GitLabRelease.cs" />
+    <Compile Include="Models\GitHubRelease.cs" />
+    <Compile Include="Models\GitLabRelease.cs" />
+    <Compile Include="Models\IAsset.cs" />
+    <Compile Include="Models\IRelease.cs" />
     <Compile Include="Settings\Agent.cs" />
     <Compile Include="Settings\AutoUpdater.cs" />
     <Compile Include="Settings\EnventLog.cs" />

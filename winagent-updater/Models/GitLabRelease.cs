@@ -1,12 +1,12 @@
 ﻿using System.Collections.Generic;
 using Newtonsoft.Json;
 
-namespace winagent_updater
+namespace winagent_updater.Models
 {
-    class GitLabRelease
+    class GitLabRelease : IRelease
     {
         #region Nested class to identify assets
-        public class GitLabAsset
+        public class GitLabAsset : IAsset
         {
             [JsonProperty(PropertyName = "name")]
             public string Filename { get; set; }
@@ -31,6 +31,13 @@ namespace winagent_updater
         public string Version { get; set; }
 
         [JsonProperty(PropertyName = "assets")]
-        public AssetList Assets { get; set; }
+        public AssetList Assets { private get; set; }
+
+        public List<IAsset> Files
+        {
+            get => new List<IAsset>(Assets.Files);
+
+            set { }
+        }
     }
 }
