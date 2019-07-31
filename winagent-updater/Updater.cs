@@ -35,14 +35,13 @@ namespace winagent_updater
                 Settings.Agent settings = GetSettings();
 
                 // Add plugins to be updated
-                plugins = plugins.Concat(GetPlugins(settings.InputPlugins));
+                plugins = plugins.Concat(GetPlugins(settings.InputPlugins, settings.EventLogs));
 
                 // Check remote
                 source = settings.AutoUpdates.Source;
 
                 // Main functionality
                 var updates = CheckUpdates(source, settings.AutoUpdates.Uri);
-
                 // If there are updates to be done
                 if (updates.Count > 0)
                 {
@@ -129,12 +128,12 @@ namespace winagent_updater
         }
 
         // Get the plugins to be updated from the settings file
-        static IEnumerable<string> GetPlugins(List<Settings.InputPlugin> inputPlugins)
+        static IEnumerable<string> GetPlugins(List<Settings.InputPlugin> scheduler, List<Settings.EventLog> eventLogs)
         {
             // List to store unique plugins
             HashSet<string> plugins = new HashSet<string>();
 
-            foreach (Settings.InputPlugin input in inputPlugins)
+            foreach (Settings.InputPlugin input in scheduler)
             {
                 plugins.Add(@".\plugins\" + input.Name.ToLower() + ".dll");
                 foreach (Settings.OutputPlugin output in input.OutputPlugins)
@@ -142,7 +141,15 @@ namespace winagent_updater
                     plugins.Add(@".\plugins\" + output.Name.ToLower() + ".dll");
                 }
             }
-            
+
+            foreach (Settings.EventLog eventLog in eventLogs)
+            {
+                foreach (Settings.OutputPlugin output in eventLog.OutputPlugins)
+                {
+                    plugins.Add(@".\plugins\" + output.Name.ToLower() + ".dll");
+                }
+            }
+
             return plugins;
         }
 
