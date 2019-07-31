@@ -17,11 +17,20 @@ namespace winagent_updater
     {
         // List to store the path to each file
         // Initialized with default files to be updated
-        static IEnumerable<string> plugins = new List<string>()
+        static IEnumerable<Assembly> assemblies = new List<Assembly>()
         {
-            @".\winagent.exe",
-            @".\plugin.dll",
-            @".\winagent-updater.exe"
+            new Assembly{
+                Name = "winagent",
+                Type = Assembly.AssemblyType.Executable
+            },
+            new Assembly{
+                Name = "winagent-updater",
+                Type = Assembly.AssemblyType.Executable
+            },
+            new Assembly{
+                Name = "plugin",
+                Type = Assembly.AssemblyType.Dependency
+            },
         };
         
         static string source;
@@ -35,7 +44,7 @@ namespace winagent_updater
                 Settings.Agent settings = GetSettings();
 
                 // Add plugins to be updated
-                plugins = plugins.Concat(GetPlugins(settings.InputPlugins, settings.EventLogs));
+                assemblies = assemblies.Concat(GetPlugins(settings.InputPlugins, settings.EventLogs));
 
                 // Check remote
                 source = settings.AutoUpdates.Source;
@@ -134,17 +143,25 @@ namespace winagent_updater
         }
 
         // Get the plugins to be updated from the settings file
-        static IEnumerable<string> GetPlugins(List<Settings.InputPlugin> scheduler, List<Settings.EventLog> eventLogs)
+        static IEnumerable<Assembly> GetPlugins(List<Settings.InputPlugin> scheduler, List<Settings.EventLog> eventLogs)
         {
             // List to store unique plugins
-            HashSet<string> plugins = new HashSet<string>();
+            HashSet<Assembly> plugins = new HashSet<Assembly>();
 
             foreach (Settings.InputPlugin input in scheduler)
             {
-                plugins.Add(@".\plugins\" + input.Name.ToLower() + ".dll");
+                plugins.Add(new Assembly
+                {
+                    Name = input.Name.ToLower(),
+                    Type = Assembly.AssemblyType.Plugin
+                });
                 foreach (Settings.OutputPlugin output in input.OutputPlugins)
                 {
-                    plugins.Add(@".\plugins\" + output.Name.ToLower() + ".dll");
+                    plugins.Add(new Assembly
+                    {
+                        Name = output.Name.ToLower(),
+                        Type = Assembly.AssemblyType.Plugin
+                    });
                 }
             }
 
@@ -152,7 +169,11 @@ namespace winagent_updater
             {
                 foreach (Settings.OutputPlugin output in eventLog.OutputPlugins)
                 {
-                    plugins.Add(@".\plugins\" + output.Name.ToLower() + ".dll");
+                    plugins.Add(new Assembly
+                    {
+                        Name = output.Name.ToLower(),
+                        Type = Assembly.AssemblyType.Plugin
+                    });
                 }
             }
 
@@ -168,14 +189,14 @@ namespace winagent_updater
             RestClient apiClient = new RestClient(uri.GetLeftPart(UriPartial.Authority));
 
             // Pair {plugin/repo name, local folder path}
-            foreach (string plugin in plugins)
+            foreach (Assembly plugin in assemblies)
             {
                 // Request last release [path of URI]
                 // As the GitLab URI has both encoded and decoded part, it is needed to use it 
                 // as string in the request, so it is not automatically decoded/encoded 
                 var request = new RestRequest(uri.ToString(), Method.GET);
                 // Add segment removing the extension to get repo name
-                request.AddUrlSegment("plugin", Path.GetFileNameWithoutExtension(plugin));
+                request.AddUrlSegment("plugin", plugin.Name);
 
                 // Request
                 IRestResponse response = apiClient.Execute(request);
@@ -206,9 +227,9 @@ namespace winagent_updater
 
                         // CurrentVersion
                         Version currentVersion;
-                        if (File.Exists(plugin))
+                        if (File.Exists(plugin.Path))
                         {
-                            FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(plugin);
+                            FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(plugin.Path);
                             currentVersion = new Version(versionInfo.FileVersion);
                         }
                         else
@@ -224,7 +245,7 @@ namespace winagent_updater
                             // Concat does not return a Dictionary, so .ToDictionary 
                             toUpdate = toUpdate.Concat(
                                 release.Files.ToDictionary(
-                                    x => Path.GetDirectoryName(plugin) + @"\" + x.Filename, x => x.Url
+                                    x => Path.GetDirectoryName(plugin.Path) + @"\" + x.Filename, x => x.Url
                                 )
                             ).ToDictionary(x => x.Key, x => x.Value);
                         }

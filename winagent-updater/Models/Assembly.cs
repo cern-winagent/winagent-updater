@@ -9,6 +9,8 @@ namespace winagent_updater.Models
 {
     class Assembly
     {
+        private static string path;
+
         #region Nested enum to identify the assembly type
         public enum AssemblyType
         {
@@ -33,20 +35,27 @@ namespace winagent_updater.Models
 
         public string Path
         {
-            get
+            private set
             {
                 switch (Type)
                 {
                     case AssemblyType.Executable:
-                        return String.Format(@"{0}.{1}", Name, "exe");
-
+                        path = String.Format(@"{0}.{1}", Name, "exe");
+                        break;
                     case AssemblyType.Dependency:
-                        return String.Format(@"{0}.{1}", Name, "dll");
+                        path = String.Format(@"{0}.{1}", Name, "dll");
+                        break;
 
                     case AssemblyType.Plugin:
                     default:
-                        return String.Format(@"plugins\{0}.{1}", Name, "dll");
+                        path = String.Format(@"plugins\{0}.{1}", Name, "dll");
+                        break;
                 }
+            }
+
+            get
+            {
+                return path;
             }
         }
     }
