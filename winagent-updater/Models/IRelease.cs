@@ -10,6 +10,6 @@ namespace winagent_updater.Models
     {
         string Version { get; set; }
 
-        List<IAsset> Files { get; set; }
+        List<IAsset> Files { get; }
     }
 }

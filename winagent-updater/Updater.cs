@@ -23,7 +23,7 @@ namespace winagent_updater
             @".\plugin.dll",
             @".\winagent-updater.exe"
         };
-
+        
         static string source;
 
         static void Main(string[] args)
@@ -42,10 +42,16 @@ namespace winagent_updater
 
                 // Main functionality
                 var updates = CheckUpdates(source, settings.AutoUpdates.Uri);
+                foreach (KeyValuePair<string, string> a in updates)
+                {
+                    Console.WriteLine(a.Key);
+                    Console.WriteLine(a.Value);
+
+                }
                 // If there are updates to be done
                 if (updates.Count > 0)
                 {
-                    Update(updates);
+///////////////////                    //Update(updates);
                 }
             }
             catch (Exception e)

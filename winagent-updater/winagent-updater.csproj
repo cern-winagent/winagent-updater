@@ -63,6 +63,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Models\Assembly.cs" />
     <Compile Include="Models\GitHubRelease.cs" />
     <Compile Include="Models\GitLabRelease.cs" />
     <Compile Include="Models\IAsset.cs" />

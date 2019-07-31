@@ -36,8 +36,6 @@ namespace winagent_updater.Models
         public List<IAsset> Files
         {
             get => new List<IAsset>(Assets.Files);
-
-            set { }
         }
     }
 }
