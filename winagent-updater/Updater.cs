@@ -19,21 +19,12 @@ namespace winagent_updater
         // Initialized with default files to be updated
         static IEnumerable<Assembly> assemblies = new List<Assembly>()
         {
-            new Assembly{
-                Name = "winagent",
-                Type = Assembly.AssemblyType.Executable
-            },
-            new Assembly{
-                Name = "winagent-updater",
-                Type = Assembly.AssemblyType.Executable
-            },
-            new Assembly{
-                Name = "plugin",
-                Type = Assembly.AssemblyType.Dependency
-            },
+            new Assembly(name: "winagent", type: Assembly.AssemblyType.Executable),
+            new Assembly(name: "winagent-updater", type: Assembly.AssemblyType.Executable),
+            new Assembly(name: "plugin", type: Assembly.AssemblyType.Dependency)
         };
-        
-        static string source;
+
+        static Settings.Agent settings;
 
         static void Main(string[] args)
         {
@@ -41,26 +32,18 @@ namespace winagent_updater
             try
             {
                 // Read settings file
-                Settings.Agent settings = GetSettings();
+                 settings = GetSettings();
 
                 // Add plugins to be updated
                 assemblies = assemblies.Concat(GetPlugins(settings.InputPlugins, settings.EventLogs));
-
-                // Check remote
-                source = settings.AutoUpdates.Source;
-
+                                
                 // Main functionality
-                var updates = CheckUpdates(source, settings.AutoUpdates.Uri);
-                foreach (KeyValuePair<string, string> a in updates)
-                {
-                    Console.WriteLine(a.Key);
-                    Console.WriteLine(a.Value);
+                var updates = CheckUpdates();
 
-                }
                 // If there are updates to be done
                 if (updates.Count > 0)
                 {
-///////////////////                    //Update(updates);
+                    Update(updates);
                 }
             }
             catch (Exception e)
@@ -151,17 +134,17 @@ namespace winagent_updater
             foreach (Settings.InputPlugin input in scheduler)
             {
                 plugins.Add(new Assembly
-                {
-                    Name = input.Name.ToLower(),
-                    Type = Assembly.AssemblyType.Plugin
-                });
+                (
+                    name: input.Name.ToLower(),
+                    type: Assembly.AssemblyType.Plugin
+                ));
                 foreach (Settings.OutputPlugin output in input.OutputPlugins)
                 {
                     plugins.Add(new Assembly
-                    {
-                        Name = output.Name.ToLower(),
-                        Type = Assembly.AssemblyType.Plugin
-                    });
+                    (
+                        name: output.Name.ToLower(),
+                        type: Assembly.AssemblyType.Plugin
+                    ));
                 }
             }
 
@@ -170,23 +153,23 @@ namespace winagent_updater
                 foreach (Settings.OutputPlugin output in eventLog.OutputPlugins)
                 {
                     plugins.Add(new Assembly
-                    {
-                        Name = output.Name.ToLower(),
-                        Type = Assembly.AssemblyType.Plugin
-                    });
+                    (
+                        name: output.Name.ToLower(),
+                        type: Assembly.AssemblyType.Plugin
+                    ));
                 }
             }
 
             return plugins;
         }
 
-        static IDictionary<string, string> CheckUpdates(string source, Uri uri)
+        static IDictionary<string, string> CheckUpdates()
         {
             // Dictionary to store filenames and download URLs
             IDictionary<string, string> toUpdate = new Dictionary<string, string>();
 
             // Client pointing the cern-winagent repo
-            RestClient apiClient = new RestClient(uri.GetLeftPart(UriPartial.Authority));
+            RestClient apiClient = new RestClient(settings.AutoUpdates.Uri.GetLeftPart(UriPartial.Authority));
 
             // Pair {plugin/repo name, local folder path}
             foreach (Assembly plugin in assemblies)
@@ -194,7 +177,7 @@ namespace winagent_updater
                 // Request last release [path of URI]
                 // As the GitLab URI has both encoded and decoded part, it is needed to use it 
                 // as string in the request, so it is not automatically decoded/encoded 
-                var request = new RestRequest(uri.ToString(), Method.GET);
+                var request = new RestRequest(settings.AutoUpdates.Uri.ToString(), Method.GET);
                 // Add segment removing the extension to get repo name
                 request.AddUrlSegment("plugin", plugin.Name);
 
@@ -208,7 +191,7 @@ namespace winagent_updater
                         // Consume response
                         // Get Info
                         IRelease release;
-                        switch (source)
+                        switch (settings.AutoUpdates.Source)
                         {
                             case "github":
                                 release = Newtonsoft.Json.JsonConvert.DeserializeObject<GitHubRelease>(response.Content);
@@ -338,7 +321,7 @@ namespace winagent_updater
                             serviceController.WaitForStatus(ServiceControllerStatus.Stopped, TimeSpan.FromSeconds(25));
                         }
 
-                        // Files are being copied while winagent.exe is still in use
+                        // Files are being copied while winagent.exe is still in use (serviceController.WaitForStatus is not actually waiting)
                         // So wait
                         // TODO: This should be changed at some point
                         Thread.Sleep(5000);

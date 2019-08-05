@@ -9,8 +9,6 @@ namespace winagent_updater.Models
 {
     class Assembly
     {
-        private static string path;
-
         #region Nested enum to identify the assembly type
         public enum AssemblyType
         {
@@ -29,34 +27,41 @@ namespace winagent_updater.Models
         }
         #endregion
 
+        public Assembly (string name, AssemblyType type)
+        {
+            Name = name;
+            Type = type;
+
+            switch (Type)
+            {
+                case AssemblyType.Executable:
+                    Path = String.Format(@"{0}.{1}", Name, "exe");
+                    break;
+                case AssemblyType.Dependency:
+                    Path = String.Format(@"{0}.{1}", Name, "dll");
+                    break;
+
+                case AssemblyType.Plugin:
+                default:
+                    Path = String.Format(@"plugins\{0}.{1}", Name, "dll");
+                    break;
+            }
+        }
+
         public string Name { set; get; }
 
-        public AssemblyType Type { set; get; } = AssemblyType.Plugin;
+        public AssemblyType Type { set; get; }
 
-        public string Path
+        public string Path { get; }
+
+        public override bool Equals(object obj)
         {
-            private set
-            {
-                switch (Type)
-                {
-                    case AssemblyType.Executable:
-                        path = String.Format(@"{0}.{1}", Name, "exe");
-                        break;
-                    case AssemblyType.Dependency:
-                        path = String.Format(@"{0}.{1}", Name, "dll");
-                        break;
+            return ((Assembly) obj).Name == this.Name;
+        }
 
-                    case AssemblyType.Plugin:
-                    default:
-                        path = String.Format(@"plugins\{0}.{1}", Name, "dll");
-                        break;
-                }
-            }
-
-            get
-            {
-                return path;
-            }
+        public override int GetHashCode()
+        {
+            return this.Name.GetHashCode();
         }
     }
 }
