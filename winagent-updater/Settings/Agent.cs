@@ -13,10 +13,5 @@ namespace winagent_updater.Settings
 
         [JsonProperty(PropertyName = "eventLogs")]
         public List<EventLog> EventLogs { set; get; }
-
-        public override string ToString()
-        {
-            return JsonConvert.SerializeObject(this); ;
-        }
     }
 }

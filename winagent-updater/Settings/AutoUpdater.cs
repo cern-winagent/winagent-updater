@@ -16,6 +16,5 @@ namespace winagent_updater.Settings
 
         [JsonProperty(PropertyName = "schedule")]
         public Schedule Schedule { get; set; }
-
     }
 }

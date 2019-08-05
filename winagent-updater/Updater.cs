@@ -273,6 +273,9 @@ namespace winagent_updater
                         message.Append(Environment.NewLine);
                         message.Append("RequestURL: ");
                         message.Append(apiClient.BuildUri(request));
+                        message.Append(Environment.NewLine);
+                        message.Append("Response Content: ");
+                        message.Append(response.Content);
 
                         eventLog.Source = "WinagentUpdater";
                         eventLog.WriteEntry(message.ToString(), EventLogEntryType.Error, 1, 1);
