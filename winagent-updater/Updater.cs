@@ -9,9 +9,11 @@ using System.Threading;
 using RestSharp;
 using RestSharp.Extensions;
 
-using winagent_updater.Models;
+using Winagent.Updater.Models;
+using Winagent.Settings;
+using Winagent.ExceptionHandling;
 
-namespace winagent_updater
+namespace Winagent.Updater.Model
 {
     class Updater
     {
@@ -21,7 +23,9 @@ namespace winagent_updater
         {
             new Assembly(name: "winagent", type: Assembly.AssemblyType.Executable),
             new Assembly(name: "winagent-updater", type: Assembly.AssemblyType.Executable),
-            new Assembly(name: "plugin", type: Assembly.AssemblyType.Dependency)
+            new Assembly(name: "plugin", type: Assembly.AssemblyType.Dependency),
+            new Assembly(name: "settings", type: Assembly.AssemblyType.Dependency),
+            new Assembly(name: "exceptionhanding", type: Assembly.AssemblyType.Dependency)
         };
 
         static Settings.Agent settings;
@@ -49,7 +53,7 @@ namespace winagent_updater
             catch (Exception e)
             {
                 // EventID 0 => General Error
-                using (EventLog eventLog = new EventLog("Application"))
+                using (System.Diagnostics.EventLog eventLog = new System.Diagnostics.EventLog("Application"))
                 {
                     System.Text.StringBuilder message = new System.Text.StringBuilder("General Error");
                     message.Append(Environment.NewLine);
@@ -61,7 +65,7 @@ namespace winagent_updater
             finally
             {
                 // EventID 8 => Execution finished
-                using (EventLog eventLog = new EventLog("Application"))
+                using (System.Diagnostics.EventLog eventLog = new System.Diagnostics.EventLog("Application"))
                 {
                     System.Text.StringBuilder message = new System.Text.StringBuilder("Auto-update execution finished");
                     eventLog.Source = "WinagentUpdater";
@@ -86,7 +90,7 @@ namespace winagent_updater
             catch (FileNotFoundException fnfe)
             {
                 // EventID 6 => Service not started
-                using (EventLog eventLog = new EventLog("Application"))
+                using (System.Diagnostics.EventLog eventLog = new System.Diagnostics.EventLog("Application"))
                 {
                     System.Text.StringBuilder message = new System.Text.StringBuilder(String.Format("The specified path \"{0}\" does not appear to be valid", path));
                     message.Append(Environment.NewLine);
@@ -99,7 +103,7 @@ namespace winagent_updater
             catch (Newtonsoft.Json.JsonSerializationException jse)
             {
                 // EventID 7 => Error in settings file
-                using (EventLog eventLog = new EventLog("Application"))
+                using (System.Diagnostics.EventLog eventLog = new System.Diagnostics.EventLog("Application"))
                 {
                     System.Text.StringBuilder message = new System.Text.StringBuilder(String.Format("The agent could not parse the config file, please check the syntax", path));
                     message.Append(Environment.NewLine);
@@ -112,7 +116,7 @@ namespace winagent_updater
             catch (Exception e)
             {
                 // EventID 8 => Error while parsing the settings file
-                using (EventLog eventLog = new EventLog("Application"))
+                using (System.Diagnostics.EventLog eventLog = new System.Diagnostics.EventLog("Application"))
                 {
                     System.Text.StringBuilder message = new System.Text.StringBuilder(String.Format("An undefined error occurred while parsing the config file", path));
                     message.Append(Environment.NewLine);
@@ -236,7 +240,7 @@ namespace winagent_updater
                     catch (Exception e)
                     {
                         // EventID 2 => General Request Error
-                        using (EventLog eventLog = new EventLog("Application"))
+                        using (System.Diagnostics.EventLog eventLog = new System.Diagnostics.EventLog("Application"))
                         {
                             System.Text.StringBuilder message = new System.Text.StringBuilder("General Request Error");
                             message.Append(Environment.NewLine);
@@ -263,7 +267,7 @@ namespace winagent_updater
                 else
                 {
                     // EventID 1 => Request failed
-                    using (EventLog eventLog = new EventLog("Application"))
+                    using (System.Diagnostics.EventLog eventLog = new System.Diagnostics.EventLog("Application"))
                     {
                         System.Text.StringBuilder message = new System.Text.StringBuilder("Request failed: ");
                         message.Append(response.StatusCode);
@@ -300,7 +304,7 @@ namespace winagent_updater
                 if (Checksum(toUpdate) == false)
                 {
                     // EventID 6 => Checksum failed
-                    using (EventLog eventLog = new EventLog("Application"))
+                    using (System.Diagnostics.EventLog eventLog = new System.Diagnostics.EventLog("Application"))
                     {
                         string message = "Checksum failed";
                         eventLog.Source = "WinagentUpdater";
@@ -340,7 +344,7 @@ namespace winagent_updater
             catch (InvalidOperationException ioe)
             {
                 // EventID 3 => Service not started
-                using (EventLog eventLog = new EventLog("Application"))
+                using (System.Diagnostics.EventLog eventLog = new System.Diagnostics.EventLog("Application"))
                 {
                     System.Text.StringBuilder message = new System.Text.StringBuilder("Service not started");
                     message.Append(Environment.NewLine);
@@ -374,7 +378,7 @@ namespace winagent_updater
                 catch(ArgumentNullException ane)
                 {
                     // EventID 4 => Could not write the file
-                    using (EventLog eventLog = new EventLog("Application"))
+                    using (System.Diagnostics.EventLog eventLog = new System.Diagnostics.EventLog("Application"))
                     {
                         System.Text.StringBuilder message = new System.Text.StringBuilder("File could not be saved: ");
                         message.Append(Environment.NewLine);
@@ -387,7 +391,7 @@ namespace winagent_updater
                 catch (DirectoryNotFoundException dnf)
                 {
                     // EventID 5 => "tmp" Directory not found
-                    using (EventLog eventLog = new EventLog("Application"))
+                    using (System.Diagnostics.EventLog eventLog = new System.Diagnostics.EventLog("Application"))
                     {
                         System.Text.StringBuilder message = new System.Text.StringBuilder("File could not be saved: 'tmp' directory not found");
                         message.Append(Environment.NewLine);
@@ -420,7 +424,7 @@ namespace winagent_updater
                     File.Copy(@".\tmp\" + Path.GetFileName(file.Key), file.Key, true);
 
                     // EventID 7 => Application updated
-                    using (EventLog eventLog = new EventLog("Application"))
+                    using (System.Diagnostics.EventLog eventLog = new System.Diagnostics.EventLog("Application"))
                     {
                         System.Text.StringBuilder message = new System.Text.StringBuilder("Application updated");
                         message.Append(Environment.NewLine);

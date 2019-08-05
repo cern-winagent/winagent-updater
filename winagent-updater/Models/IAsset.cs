@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace winagent_updater.Models
+namespace Winagent.Updater.Models
 {
     interface IAsset
     {

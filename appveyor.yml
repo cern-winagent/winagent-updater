@@ -10,7 +10,8 @@ environment:
 before_build:
 - ps: nuget restore
 - ps: mkdir $ENV:APP_NAME/lib
-- ps: Start-FileDownload 'https://github.com/cern-winagent/plugin/releases/latest/download/plugin.dll' -FileName $ENV:APP_NAME/lib/plugin.dll
+- ps: Start-FileDownload 'https://github.com/cern-winagent/settings/releases/latest/download/settings.dll' -FileName $ENV:APP_NAME/lib/settings.dll
+- ps: Start-FileDownload 'https://github.com/cern-winagent/exceptionhandling/releases/latest/download/exceptionhandling.dll' -FileName $ENV:APP_NAME/lib/exceptionhandling.dll
 
 build_script:
 - ps: msbuild /p:VersionAssembly=$ENV:APPVEYOR_REPO_TAG_NAME /p:Configuration=Release $ENV:APP_NAME.sln

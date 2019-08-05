@@ -9,6 +9,9 @@ compilation:
   stage: compile
   before_script:
     - nuget restore
+    - mkdir $env:CI_PROJECT_NAME/lib
+    - wget https://gitlab.cern.ch/$env:CI_PROJECT_NAMESPACE/settings/-/jobs/artifacts/master/raw/settings/bin/Release/settings.dll?job=compilation -OutFile $env:CI_PROJECT_NAME/lib/settings.dll
+    - wget https://gitlab.cern.ch/$env:CI_PROJECT_NAMESPACE/exceptionhandling/-/jobs/artifacts/master/raw/exceptionhandling/bin/Release/exceptionhandling.dll?job=compilation -OutFile $env:CI_PROJECT_NAME/lib/exceptionhandling.dll
   script:
     - msbuild /p:VersionAssembly=$env:CI_COMMIT_TAG /p:Configuration=Release $env:CI_PROJECT_NAME.sln
   after_script:

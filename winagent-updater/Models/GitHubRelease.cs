@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using Newtonsoft.Json;
 
-namespace winagent_updater.Models
+namespace Winagent.Updater.Models
 {
     class GitHubRelease : IRelease
     {
