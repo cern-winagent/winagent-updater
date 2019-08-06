@@ -35,15 +35,15 @@ namespace Winagent.Updater.Models
             switch (Type)
             {
                 case AssemblyType.Executable:
-                    Path = String.Format(@"{0}.{1}", Name, "exe");
+                    Path = String.Format(@".\{0}.{1}", Name, "exe");
                     break;
                 case AssemblyType.Dependency:
-                    Path = String.Format(@"{0}.{1}", Name, "dll");
+                    Path = String.Format(@".\{0}.{1}", Name, "dll");
                     break;
 
                 case AssemblyType.Plugin:
                 default:
-                    Path = String.Format(@"plugins\{0}.{1}", Name, "dll");
+                    Path = String.Format(@".\plugins\{0}.{1}", Name, "dll");
                     break;
             }
         }

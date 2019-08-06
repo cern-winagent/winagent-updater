@@ -10,8 +10,6 @@ using RestSharp;
 using RestSharp.Extensions;
 
 using Winagent.Updater.Models;
-using Winagent.Settings;
-using Winagent.ExceptionHandling;
 
 namespace Winagent.Updater.Model
 {
@@ -23,9 +21,7 @@ namespace Winagent.Updater.Model
         {
             new Assembly(name: "winagent", type: Assembly.AssemblyType.Executable),
             new Assembly(name: "winagent-updater", type: Assembly.AssemblyType.Executable),
-            new Assembly(name: "plugin", type: Assembly.AssemblyType.Dependency),
-            new Assembly(name: "settings", type: Assembly.AssemblyType.Dependency),
-            new Assembly(name: "exceptionhandling", type: Assembly.AssemblyType.Dependency)
+            new Assembly(name: "plugin", type: Assembly.AssemblyType.Dependency)
         };
 
         static Settings.Agent settings;
@@ -421,17 +417,36 @@ namespace Winagent.Updater.Model
                 // Do not copy .sha1 files
                 if (Path.GetExtension(file.Key) != ".sha1")
                 {
-                    File.Copy(@".\tmp\" + Path.GetFileName(file.Key), file.Key, true);
-
-                    // EventID 7 => Application updated
-                    using (System.Diagnostics.EventLog eventLog = new System.Diagnostics.EventLog("Application"))
+                    try
                     {
-                        System.Text.StringBuilder message = new System.Text.StringBuilder("Application updated");
-                        message.Append(Environment.NewLine);
-                        message.Append(file.Key);
-                        eventLog.Source = "WinagentUpdater";
-                        eventLog.WriteEntry(message.ToString(), EventLogEntryType.Information, 7, 1);
+                        File.Copy(@".\tmp\" + Path.GetFileName(file.Key), file.Key, true);
+
+                        // EventID 7 => Application updated
+                        using (System.Diagnostics.EventLog eventLog = new System.Diagnostics.EventLog("Application"))
+                        {
+                            System.Text.StringBuilder message = new System.Text.StringBuilder("Application updated");
+                            message.Append(Environment.NewLine);
+                            message.Append(file.Key);
+                            eventLog.Source = "WinagentUpdater";
+                            eventLog.WriteEntry(message.ToString(), EventLogEntryType.Information, 7, 1);
+                        }
                     }
+                    catch(Exception e)
+                    {
+                        // EventID 9 => Application updated
+                        using (System.Diagnostics.EventLog eventLog = new System.Diagnostics.EventLog("Application"))
+                        {
+                            System.Text.StringBuilder message = new System.Text.StringBuilder("An error ocurred while copying the file");
+                            message.Append(Environment.NewLine);
+                            message.Append(file.Key);
+                            eventLog.Source = "WinagentUpdater";
+                            eventLog.WriteEntry(message.ToString(), EventLogEntryType.Error, 9, 1);
+                        }
+                    }
+                }
+                else
+                {
+                    File.Delete(file.Key);
                 }
             }
         }

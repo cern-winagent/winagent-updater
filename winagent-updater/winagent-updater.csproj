@@ -42,10 +42,6 @@
     <OutputPath>bin\x64\Release\</OutputPath>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="exceptionhandling, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>lib\exceptionhandling.dll</HintPath>
-    </Reference>
     <Reference Include="Newtonsoft.Json, Version=11.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\packages\Newtonsoft.Json.11.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
@@ -54,10 +50,6 @@
     </Reference>
     <Reference Include="RestSharp.Serializers.Newtonsoft.Json, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\RestSharp.Newtonsoft.Json.1.5.0\lib\net452\RestSharp.Serializers.Newtonsoft.Json.dll</HintPath>
-    </Reference>
-    <Reference Include="settings, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>lib\settings.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -76,6 +68,12 @@
     <Compile Include="Models\GitLabRelease.cs" />
     <Compile Include="Models\IAsset.cs" />
     <Compile Include="Models\IRelease.cs" />
+    <Compile Include="Settings\Agent.cs" />
+    <Compile Include="Settings\AutoUpdater.cs" />
+    <Compile Include="Settings\EnventLog.cs" />
+    <Compile Include="Settings\InputPlugin.cs" />
+    <Compile Include="Settings\OutputPlugin.cs" />
+    <Compile Include="Settings\Schedule.cs" />
     <Compile Include="Updater.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
