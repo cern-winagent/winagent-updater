@@ -25,7 +25,7 @@ namespace Winagent.Updater.Model
             new Assembly(name: "winagent-updater", type: Assembly.AssemblyType.Executable),
             new Assembly(name: "plugin", type: Assembly.AssemblyType.Dependency),
             new Assembly(name: "settings", type: Assembly.AssemblyType.Dependency),
-            new Assembly(name: "exceptionhanding", type: Assembly.AssemblyType.Dependency)
+            new Assembly(name: "exceptionhandling", type: Assembly.AssemblyType.Dependency)
         };
 
         static Settings.Agent settings;
