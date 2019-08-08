@@ -241,7 +241,7 @@ namespace Winagent.Updater.Model
                             System.Text.StringBuilder message = new System.Text.StringBuilder("General Request Error");
                             message.Append(Environment.NewLine);
                             message.Append("Plugin: ");
-                            message.Append(plugin);
+                            message.Append(plugin.Name);
                             message.Append(Environment.NewLine);
                             message.Append("Response StatusCode: ");
                             message.Append(response.StatusCode);
@@ -269,7 +269,7 @@ namespace Winagent.Updater.Model
                         message.Append(response.StatusCode);
                         message.Append(Environment.NewLine);
                         message.Append("Plugin: ");
-                        message.Append(plugin);
+                        message.Append(plugin.Name);
                         message.Append(Environment.NewLine);
                         message.Append("RequestURL: ");
                         message.Append(apiClient.BuildUri(request));
