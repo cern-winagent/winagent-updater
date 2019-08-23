@@ -1,35 +1,71 @@
 stages:
-  - compile
+  - build
   - release
+  - deploy
 
 variables:
   assembly_extension: "exe"
 
-compilation:
-  stage: compile
+
+.build_scripts : &build_scripts
   before_script:
     - nuget restore
-    - mkdir $env:CI_PROJECT_NAME/lib
-    - wget https://gitlab.cern.ch/$env:CI_PROJECT_NAMESPACE/settings/-/jobs/artifacts/master/raw/settings/bin/Release/settings.dll?job=compilation -OutFile $env:CI_PROJECT_NAME/lib/settings.dll
-    - wget https://gitlab.cern.ch/$env:CI_PROJECT_NAMESPACE/exceptionhandling/-/jobs/artifacts/master/raw/exceptionhandling/bin/Release/exceptionhandling.dll?job=compilation -OutFile $env:CI_PROJECT_NAME/lib/exceptionhandling.dll
   script:
     - msbuild /p:VersionAssembly=$env:CI_COMMIT_TAG /p:Configuration=Release $env:CI_PROJECT_NAME.sln
   after_script:
     - (Get-FileHash $env:CI_PROJECT_NAME/bin/Release/$env:CI_PROJECT_NAME.$env:ASSEMBLY_EXTENSION -Algorithm SHA1).Hash > $env:CI_PROJECT_NAME/bin/Release/$env:CI_PROJECT_NAME.$env:ASSEMBLY_EXTENSION.sha1
+
+
+test_build:
+  stage: build
+  except:
+    - tags
+  <<: *build_scripts
+  
+
+build:
+  stage: build
+  only:
+    - tags
+  <<: *build_scripts
   artifacts:
     paths:
       - $env:CI_PROJECT_NAME/bin/Release/$env:CI_PROJECT_NAME.$env:ASSEMBLY_EXTENSION
       - $env:CI_PROJECT_NAME/bin/Release/$env:CI_PROJECT_NAME.$env:ASSEMBLY_EXTENSION.sha1
     expire_in: 1 year
 
-# This needs to be changed by GitLab
-# Release creation should be 'keyword based'
-release:
+
+release_version:
   stage: release
-  only: 
+  only:
     - tags
-  script: 
+  script:
     # Create a release for the current tag
+    # This needs to be changed by GitLab
+    # Release creation should be 'keyword based'
     - CreateRelease
-    # Update "latest" release name the newest version number
-    - UpdateLatestRelease
+
+
+release_qa:
+  stage: deploy
+  environment: qa
+  only:
+    - tags
+  script:
+    # Update "qa" release name the newest version number
+    # This needs to be changed by GitLab
+    # Release creation should be 'keyword based'
+    - DeployQA
+  
+
+release_production:
+  stage: deploy
+  environment: production
+  when: manual
+  only:
+    - tags
+  script:
+    # Update "production" release name the newest version number
+    # This needs to be changed by GitLab
+    # Release creation should be 'keyword based'
+    - DeployProduction
