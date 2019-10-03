@@ -85,7 +85,7 @@ namespace Winagent.Updater.Model
             }
             catch (FileNotFoundException fnfe)
             {
-                // EventID 6 => Service not started
+                // EventID 6 => Could not find settings path
                 using (System.Diagnostics.EventLog eventLog = new System.Diagnostics.EventLog("Application"))
                 {
                     System.Text.StringBuilder message = new System.Text.StringBuilder(String.Format("The specified path \"{0}\" does not appear to be valid", path));
