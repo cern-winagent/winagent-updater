@@ -35,7 +35,7 @@ namespace Winagent.Updater.Model
                  settings = GetSettings();
 
                 // Add plugins to be updated
-                assemblies = assemblies.Concat(GetPlugins(settings.InputPlugins, settings.EventLogs));
+                assemblies = assemblies.Concat(GetPlugins(settings.InputPlugins, settings.EventLogs, settings.AutoUpdates.AdditionalUpdates));
                                 
                 // Main functionality
                 var updates = CheckUpdates();
@@ -126,11 +126,12 @@ namespace Winagent.Updater.Model
         }
 
         // Get the plugins to be updated from the settings file
-        static IEnumerable<Assembly> GetPlugins(List<Settings.InputPlugin> scheduler, List<Settings.EventLog> eventLogs)
+        static IEnumerable<Assembly> GetPlugins(List<Settings.InputPlugin> scheduler, List<Settings.EventLog> eventLogs, List<string> additionalUpdates)
         {
             // List to store unique plugins
             HashSet<Assembly> plugins = new HashSet<Assembly>();
 
+            // Add all the input plugins configured
             foreach (Settings.InputPlugin input in scheduler)
             {
                 plugins.Add(new Assembly
@@ -138,6 +139,8 @@ namespace Winagent.Updater.Model
                     name: input.Name.ToLower(),
                     type: Assembly.AssemblyType.Plugin
                 ));
+
+                // Add all the output plugins configured for each input
                 foreach (Settings.OutputPlugin output in input.OutputPlugins)
                 {
                     plugins.Add(new Assembly
@@ -148,6 +151,7 @@ namespace Winagent.Updater.Model
                 }
             }
 
+            // Add all the output plugins configured for each EventLog
             foreach (Settings.EventLog eventLog in eventLogs)
             {
                 foreach (Settings.OutputPlugin output in eventLog.OutputPlugins)
@@ -155,6 +159,19 @@ namespace Winagent.Updater.Model
                     plugins.Add(new Assembly
                     (
                         name: output.Name.ToLower(),
+                        type: Assembly.AssemblyType.Plugin
+                    ));
+                }
+            }
+
+            // Add all the plugins configured manually
+            if (additionalUpdates != null)
+            {
+                foreach (string plugin in additionalUpdates)
+                {
+                    plugins.Add(new Assembly
+                    (
+                        name: plugin.ToLower(),
                         type: Assembly.AssemblyType.Plugin
                     ));
                 }

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Winagent.Updater.Models;
 
 namespace Winagent.Updater.Settings
 {
@@ -20,5 +21,8 @@ namespace Winagent.Updater.Settings
 
         [JsonProperty(PropertyName = "schedule")]
         public Schedule Schedule { get; set; }
+
+        [JsonProperty(PropertyName = "additionalUpdates")]
+        public List<string> AdditionalUpdates { get; set; }
     }
 }

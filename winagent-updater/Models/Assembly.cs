@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Winagent.Updater.Models
 {
-    class Assembly
+    public class Assembly
     {
         #region Nested enum to identify the assembly type
         public enum AssemblyType
